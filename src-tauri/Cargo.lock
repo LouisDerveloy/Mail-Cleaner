@@ -2063,6 +2063,7 @@ dependencies = [
  "base64 0.22.1",
  "imap",
  "native-tls",
+ "serde",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",
