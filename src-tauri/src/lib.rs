@@ -2,15 +2,18 @@
 use tauri::ipc::{Channel, IpcResponse};
 
 use std::fmt::{Debug, Display};
+use std::future::Future;
 use std::net::TcpStream;
 use imap;
 use native_tls;
 use base64;
 use imap::Session;
 use native_tls::TlsStream;
+use serde::Serialize;
 use crate::email_access_provider::{EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
 mod email_access_provider;
 
+#[derive(Serialize)]
 enum CommandResult {
     Success,
     Failure(String),
