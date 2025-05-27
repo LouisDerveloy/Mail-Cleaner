@@ -13,6 +13,7 @@ function GoToAnalyse() {
   <div class="container">
     <h1>Home</h1>
     <RouterLink to="analyse">Analyse my email</RouterLink>
+    <RouterLink to="user/connexion">Connect to my email service</RouterLink>
   </div>
 </template>
 

@@ -1,8 +1,22 @@
 use std::fmt::{Debug, Display};
+use std::sync::Mutex;
 use imap;
 use imap::{Connection, Session};
 use native_tls;
 use serde::Serialize;
+use tauri::{AppHandle, State};
+use crate::AppState;
+
+pub fn get_email_session(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Option<EmailAccessProvider> {
+    /*
+    TODO: Check if email_session is already in the states.
+    TODO: if already in the states just return a reference to it otherwise :
+    TODO: Ask frontend to push the user to  a connexion page
+    so before that we need to create a command to initialise a email_session from the frontend
+    */
+
+    None
+}
 
 pub struct OAuthCredentials {
     user: String,

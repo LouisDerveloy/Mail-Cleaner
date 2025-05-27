@@ -75,6 +75,13 @@ fn test(state: State<'_, Mutex<AppState>>) -> CommandResult {
     CommandResult::Success
 }
 
+#[tauri::command]
+fn token_connect(state: State<'_, Mutex<AppState>>, email: String, token: String) -> CommandResult {
+    println!("email: {}", email);
+    println!("token: {}", token);
+    CommandResult::Success
+}
+
 #[derive(Default)]
 struct AppState {
     email_session: Option<EmailAccessProvider>,
@@ -90,7 +97,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_list, test])
+        .invoke_handler(tauri::generate_handler![get_list, test, token_connect])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
