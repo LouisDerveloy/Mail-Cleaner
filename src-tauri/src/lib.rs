@@ -9,7 +9,7 @@ use base64;
 use serde::Serialize;
 use crate::email_access_provider::{EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
 use std::sync::{Mutex, MutexGuard};
-use tauri::{Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 mod email_access_provider;
 
@@ -57,7 +57,7 @@ fn get_list(state: State<'_, Mutex<AppState>>, ret_channel: Channel<Sender>, que
 }
 
 #[tauri::command]
-fn test(state: State<'_, Mutex<AppState>>) -> CommandResult {
+fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResult {
     let guard: MutexGuard<AppState> = match state.lock().ok() {
         None => {
             return CommandResult::Failure(FailureType::FailedToLockState);
@@ -67,7 +67,9 @@ fn test(state: State<'_, Mutex<AppState>>) -> CommandResult {
 
     if guard.email_session.is_none() {
         println!("email session is none");
-        println!("Please provide an email session")
+        println!("Please provide an email session");
+
+        app_handle.emit("open-login-page", "").expect("failed to emit open-login-page event in test command.");
     } else {
         println!("email session is not none");
     }

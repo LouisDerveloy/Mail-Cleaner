@@ -1,6 +1,13 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from "vue-router";
+import {RouterLink, RouterView, useRouter} from "vue-router";
 
+import {listen} from "@tauri-apps/api/event";
+
+const router = useRouter();
+const open_login_page_event = listen("open-login-page", () => {
+  console.log("open-login-page event received")
+  router.push("/user/connexion")
+})
 
 </script>
 <template>
