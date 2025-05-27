@@ -1,10 +1,7 @@
 use std::fmt::{Debug, Display};
-use std::net::TcpStream;
 use imap;
-use imap::{types, Session};
-use imap::types::{Fetch};
+use imap::{Connection, Session};
 use native_tls;
-use native_tls::TlsStream;
 use serde::Serialize;
 
 pub struct OAuthCredentials {
@@ -58,68 +55,85 @@ impl MailServer {
 }
 
 pub trait EmailProvider {
-    async fn get_inbox_senders_email_list<E>(&mut self) -> Result<Vec<Sender>, E>
-    where E: Display + Debug;
+    fn get_inbox_senders_email_list(&mut self, query: String) -> Vec<Sender>;
 }
 
 pub struct EmailAccessProvider {
-    mail_server: MailServer,
-    imap_session: Session<TlsStream<TcpStream>>,
+    imap_session: Session<Connection>,
 }
 
 #[derive(Serialize)]
 pub struct Sender {
+    id: u32,
     name: Option<String>,
     email: String,
 }
 
 impl EmailAccessProvider {
-    pub fn new<E>(mail_server: MailServer, credentials: Credentials) -> Result<Self, E>
-    where E: Display + Debug {
-        let tls = native_tls::TlsConnector::builder().build().unwrap();
+    pub fn new(mail_server: MailServer, credentials: Credentials) -> Self {
 
-        let client = imap::connect((mail_server.domain.clone(), 993), &mail_server.domain, &tls).unwrap();
+        let client = imap::ClientBuilder::new(mail_server.domain, mail_server.port).connect().unwrap();
 
         // Login to the server based on what credentials where chosen by the user.
-        let imap_session: Session<TlsStream<TcpStream>> = match credentials {
+        let mut imap_session: Session<Connection> = match credentials {
             Credentials::Password(credentials) => client.login(credentials.user, credentials.password).unwrap(),
             Credentials::Oauth(credentials) => client.authenticate("XOAUTH2", &credentials, ).unwrap(),
         };
 
+        imap_session.select("INBOX").unwrap();
 
-        Ok(EmailAccessProvider {
+        EmailAccessProvider {
             imap_session,
-            mail_server,
-        })
+        }
     }
 }
 
 impl EmailProvider for EmailAccessProvider {
-    async fn get_inbox_senders_email_list<E>(&mut self) -> Result<Vec<Sender>, E>
-    where
-        E: Display + Debug
-    {
+    fn get_inbox_senders_email_list(&mut self, query: String) -> Vec<Sender> {
+
+        println!("Get inbox senders' address from query: {}", query);
+
         let mut senders: Vec<Sender> = Vec::new();
 
         // Search for all the ids of emails which match the request <BODY unsubscribe> that mean the body has to contain the word unsubscribe
-        for seq in self.imap_session.search("BODY unsubscribe").unwrap().iter() {
+        let search_result = match self.imap_session.search(query) {
+            Ok(ids) => ids,
+            Err(err) => {
+                eprintln!("No email found according to the request. Error: {:?}", err);
+                return senders;
+            }
+        };
+
+        println!("Found {} emails matching the request.", search_result.len());
+
+
+        for seq in search_result {
 
             // Fetch the sender of those mails
-            match self.imap_session.fetch(seq.to_string(), "ALL") {
+            let result = self.imap_session.fetch(seq.to_string(), "ALL");
 
-                // TODO: For more help and recursion `rustc --explain E0275` Should dive more in the trait
+            match result {
 
                 Ok(msgs) => {
-                    for msg in (*msgs).iter() {
+
+                    for msg in msgs.iter() {
+
                         if let Some(envelop) = msg.envelope() {
                             if let Some(_senders) = &envelop.sender {
                                 for sender in _senders {
 
                                     // Check if mailbox and host are defined
-                                    if let (Some(mailbox), Some(host)) = (sender.mailbox, sender.host) {
+                                    if let (Some(mailbox), Some(host)) = (sender.mailbox.clone(), sender.host.clone()) {
+
+                                        let _name = match &sender.name {
+                                            Some(name) => Some(String::from_utf8_lossy(name.as_ref()).to_string()),
+                                            None => None,
+                                        };
+
                                         senders.push(
                                             Sender {
-                                                name: sender.name.map(|name| String::from_utf8(name.to_owned()).expect("Failed to convert &[u8] of the name to String")), // .map convert Option(&[u8]) to Option(String)
+                                                id: seq,
+                                                name: _name,
                                                 email: format!(
                                                     "{}@{}",
                                                     String::from_utf8(mailbox.to_vec()).expect("Failed to convert &[u8] of the mailbox to String"),
@@ -127,6 +141,8 @@ impl EmailProvider for EmailAccessProvider {
                                                 ), // Concatenate the mailbox and the host into a real mail
                                             }
                                         );
+
+                                        println!("mail sent to frontend")
                                     }
                                 }
                             }
@@ -139,7 +155,7 @@ impl EmailProvider for EmailAccessProvider {
             }
         }
 
-        Ok(senders)
+        senders
     }
 }
 

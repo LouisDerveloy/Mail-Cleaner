@@ -3,93 +3,32 @@ use tauri::ipc::{Channel, IpcResponse};
 
 use std::fmt::{Debug, Display};
 use std::future::Future;
-use std::net::TcpStream;
 use imap;
 use native_tls;
 use base64;
-use imap::Session;
-use native_tls::TlsStream;
 use serde::Serialize;
 use crate::email_access_provider::{EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
+use std::sync::{Mutex, MutexGuard};
+use tauri::{Manager, State};
+
 mod email_access_provider;
 
 #[derive(Serialize)]
 enum CommandResult {
     Success,
-    Failure(String),
+    Failure(FailureType),
+}
+
+#[derive(Serialize)]
+enum FailureType {
+    NoSenderFound,
+    FailedToLockState,
+    UnknownError(String),
 }
 
 
 #[tauri::command]
-async fn get_list(ret_channel: Channel<Sender>) -> CommandResult {
-
-    // let gmail_auth = email_access_provider::OAuthCredentials::new(
-    //     String::from("louis.derveloy.gta5@gmail.com"),
-    //     String::from("ya29.a0AZYkNZh7GX2BSTgksTcgZTXENVXw8KVbUi_3vwSdoxrEc1krnaKph5GIhPaen_os_tkieM8VsVcqtMuvXq2gA2v_ZERqySS_32a8LO238R5KQ8izg9HPFZr8tqRMqwCiBTLY5jYS4xE3E-5aerS9I5TOmF1iGQxhMrrVqYPkaCgYKASESARESFQHGX2Mi-Nv9o8CIB3TexAx4jFkxTg0175"),
-    // );
-    //
-    // let domain = "imap.gmail.com";
-    // let tls = native_tls::TlsConnector::builder().build().unwrap();
-    //
-    // // we pass in the domain twice to check that the server's TLS
-    // // certificate is valid for the domain we're connecting to.
-    // let client = imap::connect((domain, 993), domain, &tls).unwrap();
-    //
-    // // the client we have here is unauthenticated.
-    // // to do anything useful with the e-mails, we need to log in
-    //
-    // let mut imap_session = client.authenticate(
-    //     "XOAUTH2",
-    //     &gmail_auth,
-    // ).expect("Authentication failed");
-    //
-    //
-    //
-    // for name in imap_session.list(None, None).expect("List failed").iter() {
-    //     println!("Name: {:?}", name);
-    // };
-    //
-    //
-    // // we want to fetch the first email in the INBOX mailbox
-    // let number_of_emails = imap_session.select("INBOX").expect("select failed").exists;
-    // println!("Number of emails: {}", number_of_emails);
-    //
-    //
-    // // Search for emails
-    // for seq in imap_session.search("BODY reddit").unwrap().iter() {
-    //     match imap_session.fetch(seq.to_string(), "ALL") {
-    //         Ok(msgs) => {
-    //             msgs.iter().for_each(|msg| {
-    //
-    //                 if let Some(envelop) = msg.envelope() {
-    //                     if let Some(senders) = &envelop.sender {
-    //                         senders.iter().for_each(|sender| {
-    //
-    //                             println!("Mailbox: {:?}\n\n", match sender.mailbox {
-    //                                 None => "".to_string(),
-    //                                 Some(host) => String::from_utf8(host.to_vec()).unwrap(),
-    //                             });
-    //                             println!("Host: {:?}", match sender.host {
-    //                                 None => "".to_string(),
-    //                                 Some(host) => String::from_utf8(host.to_vec()).unwrap(),
-    //                             });
-    //
-    //                             println!("Name: {:?}", match sender.name {
-    //                                 None => "".to_string(),
-    //                                 Some(host) => String::from_utf8(host.to_vec()).unwrap(),
-    //                             });
-    //
-    //                         })
-    //                     }
-    //                 }
-    //
-    //             })
-    //         }
-    //         Err(err) => {
-    //             println!("Couldn't fetch\nError: {:?}", err);
-    //         }
-    //     }
-    // }
+fn get_list(state: State<'_, Mutex<AppState>>, ret_channel: Channel<Sender>, query: String) -> CommandResult {
 
     let email_session = EmailAccessProvider::new(
         MailServer::new(
@@ -98,17 +37,17 @@ async fn get_list(ret_channel: Channel<Sender>) -> CommandResult {
         ),
         email_access_provider::Credentials::Oauth(OAuthCredentials::new(
             String::from("louis.derveloy.gta5@gmail.com"),
-            String::from("ya29.a0AZYkNZgbWbXjx6Rh1gUdRPXqQ8Ig7OzuZdcq1-uXBbmsk1eMbzBH8ei_MJ8yJqlVVjlgYshX_dnbeY10G-gXYQ36VY7CFVVLenxKvHWLHOMx4QDtxY8oeBne-vDLnzALl5v12Xh7Agz-i5NVOltRK-ImD1b-tkODZG_qcQqaaCgYKAdoSARESFQHGX2Mib0cDiHrGElF8DmmfcSooUQ0175"),
+            String::from("ya29.a0AW4XtxhGd22JD_NENJ2FPxE-S3oUV06NCEOZpTtgGVVsnvXAJGOLGJtkkYqSxSVuT5AQvrfy5ijArzF862Rk3Dt8uR106-qR8GdchPWEwYXIHdyMDCfQiB5BzXnGXc7m8VV2JlAZ102dTe8LEClvFkqD4ueRNdDrJAjmyA1uaCgYKAbMSARESFQHGX2Miu6bcCQ9IY3QPx9aHj5tAEg0175"),
         ))
     );
 
-    if email_session.is_err() {
-        return CommandResult::Failure(format!("An error occurred: {}", email_session.err().unwrap()));
+    let mut email_session = email_session;
+
+    let senders: Vec<Sender> = email_session.get_inbox_senders_email_list(query);
+
+    if senders.is_empty() {
+        CommandResult::Failure(FailureType::NoSenderFound);
     }
-
-    let mut email_session = email_session.unwrap();
-
-    let senders: Vec<Sender> = email_session.get_inbox_senders_email_list().await.expect("Couldn't get senders' emails");
 
     for sender in senders.into_iter() {
         ret_channel.send(sender).unwrap();
@@ -117,11 +56,41 @@ async fn get_list(ret_channel: Channel<Sender>) -> CommandResult {
     CommandResult::Success
 }
 
+#[tauri::command]
+fn test(state: State<'_, Mutex<AppState>>) -> CommandResult {
+    let guard: MutexGuard<AppState> = match state.lock().ok() {
+        None => {
+            return CommandResult::Failure(FailureType::FailedToLockState);
+        },
+        Some(data) => data
+    };
+
+    if guard.email_session.is_none() {
+        println!("email session is none");
+        println!("Please provide an email session")
+    } else {
+        println!("email session is not none");
+    }
+
+    CommandResult::Success
+}
+
+#[derive(Default)]
+struct AppState {
+    email_session: Option<EmailAccessProvider>,
+    mail_server: Option<MailServer>
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            app.manage(Mutex::new(AppState::default()));
+            Ok(())
+        })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_list])
+        .invoke_handler(tauri::generate_handler![get_list, test])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

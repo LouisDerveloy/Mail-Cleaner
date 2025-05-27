@@ -20,8 +20,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
-imap = "2.4.1"
 native-tls = "0.2.14"
 base64 = "0.22.1"
 serde = { version = "1.0.219", features = ["derive"] }
+imap = "=3.0.0-alpha.15"
 

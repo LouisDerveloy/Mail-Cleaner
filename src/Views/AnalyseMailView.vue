@@ -1,29 +1,38 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import {onMounted, ref} from "vue";
 import { invoke, Channel } from "@tauri-apps/api/core";
-
-const SenderList = ref<HTMLUListElement | null>(null);
+import type { Ref } from "vue";
 
 const ret_channel = new Channel()
-ret_channel.onmessage = (data: any) => {
-  let sender;
-  for (sender of data) {
-    let element = document.createElement("li");
-    element.textContent = sender;
-    SenderList.value?.appendChild(element);
+let senders: Ref<Array<{id: number; name: string; email: string}>> = ref([])
+
+onMounted(() => {
+  ret_channel.onmessage = (sender: any) => {
+
+    console.log("Pushed a sender email")
+    senders.value.push(sender)
+
   }
-}
+})
 
 function start_analyse() {
-  invoke("get_list", {"retChannel": ret_channel})
+  invoke("get_list", {"retChannel": ret_channel, "query": "BODY unsubscribe"})
+}
+
+function test_button() {
+  invoke("test").then(value => {
+    console.dir(value)
+  })
 }
 
 </script>
 <template>
 <h1>This is the Mail analyse View</h1>
+  <button @click="test_button">Test Button</button>
   <button @click="start_analyse">Analyse</button>
   <div class="SenderList">
-    <ul ref="SenderList">
+    <ul v-for="sender in senders" :key="sender.id" ref="ul_senders_list">
+      <li>Added {{sender.email}}</li>
     </ul>
   </div>
 </template>
