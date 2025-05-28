@@ -3,30 +3,13 @@ use tauri::ipc::{Channel, IpcResponse};
 
 use std::fmt::{Debug, Display};
 use std::future::Future;
-use imap;
-use native_tls;
-use base64;
-use serde::Serialize;
 use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
-use std::sync::{LockResult, Mutex, MutexGuard};
+use crate::utils::{CommandResult, FailureType};
+use std::sync::{Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod email_access_provider;
-
-// TODO: Move CommandResult and FailureType to a separated module to be accessible from any module.
-#[derive(Serialize)]
-enum CommandResult {
-    Success,
-    Failure(FailureType),
-}
-
-#[derive(Serialize)]
-enum FailureType {
-    NoSenderFound,
-    FailedToLockState,
-    UnknownError(String),
-}
-
+mod utils;
 
 #[tauri::command]
 fn get_list(state: State<'_, Mutex<AppState>>, ret_channel: Channel<Sender>, query: String) -> CommandResult {
@@ -80,10 +63,10 @@ fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResu
 
 #[tauri::command]
 fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
-    println!("server: {}", server);
-    println!("port: {}", port.to_string());
-    println!("email: {}", email);
-    println!("token: {}", token);
+    // println!("server: {}", server);
+    // println!("port: {}", port.to_string());
+    // println!("email: {}", email);
+    // println!("token: {}", token);
 
     let provider = MailServer::new(server, port);
     let cred = Credentials::Oauth(OAuthCredentials::new(email, token));
