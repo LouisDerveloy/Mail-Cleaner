@@ -7,12 +7,13 @@ use imap;
 use native_tls;
 use base64;
 use serde::Serialize;
-use crate::email_access_provider::{EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
-use std::sync::{Mutex, MutexGuard};
+use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
+use std::sync::{LockResult, Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod email_access_provider;
 
+// TODO: Move CommandResult and FailureType to a separated module to be accessible from any module.
 #[derive(Serialize)]
 enum CommandResult {
     Success,
@@ -78,9 +79,26 @@ fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResu
 }
 
 #[tauri::command]
-fn token_connect(state: State<'_, Mutex<AppState>>, email: String, token: String) -> CommandResult {
+fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
+    println!("server: {}", server);
+    println!("port: {}", port.to_string());
     println!("email: {}", email);
     println!("token: {}", token);
+
+    let provider = MailServer::new(server, port);
+    let cred = Credentials::Oauth(OAuthCredentials::new(email, token));
+
+    let email_session = EmailAccessProvider::new(provider.clone(), cred);
+
+    match state.lock() {
+        Ok(mut _state) => {
+            _state.mail_server = Some(provider);
+            _state.email_session = Some(email_session);
+
+        }
+        Err(_) => return CommandResult::Failure(FailureType::FailedToLockState)
+    }
+
     CommandResult::Success
 }
 

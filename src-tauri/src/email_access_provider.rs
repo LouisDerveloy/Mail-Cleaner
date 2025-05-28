@@ -11,7 +11,7 @@ pub fn get_email_session(state: State<'_, Mutex<AppState>>, app_handle: AppHandl
     /*
     TODO: Check if email_session is already in the states.
     TODO: if already in the states just return a reference to it otherwise :
-    TODO: Ask frontend to push the user to  a connexion page
+    TODO: Return an error typed
     so before that we need to create a command to initialise a email_session from the frontend
     */
 
