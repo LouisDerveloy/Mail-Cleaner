@@ -1,22 +1,11 @@
 use std::fmt::{Debug, Display};
-use std::sync::Mutex;
 use imap;
 use imap::{Connection, Session};
 use native_tls;
 use serde::Serialize;
-use tauri::{AppHandle, State};
-use crate::AppState;
-
-pub fn get_email_session(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Option<EmailAccessProvider> {
-    /*
-    TODO: Check if email_session is already in the states.
-    TODO: if already in the states just return a reference to it otherwise :
-    TODO: Return an error typed
-    so before that we need to create a command to initialise a email_session from the frontend
-    */
-
-    None
-}
+use tauri::ipc::Channel;
+use tauri::utils::acl::Value::List;
+use crate::utils::{CommandResult, FailureType};
 
 pub struct OAuthCredentials {
     user: String,
@@ -69,14 +58,14 @@ impl MailServer {
 }
 
 pub trait EmailProvider {
-    fn get_inbox_senders_email_list(&mut self, query: String) -> Vec<Sender>;
+    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Vec<Sender>>) -> CommandResult;
 }
 
 pub struct EmailAccessProvider {
     imap_session: Session<Connection>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Sender {
     id: u32,
     name: Option<String>,
@@ -103,28 +92,26 @@ impl EmailAccessProvider {
 }
 
 impl EmailProvider for EmailAccessProvider {
-    fn get_inbox_senders_email_list(&mut self, query: String) -> Vec<Sender> {
+    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Vec<Sender>>) -> CommandResult {
 
         println!("Get inbox senders' address from query: {}", query);
-
-        let mut senders: Vec<Sender> = Vec::new();
 
         // Search for all the ids of emails which match the request <BODY unsubscribe> that mean the body has to contain the word unsubscribe
         let search_result = match self.imap_session.search(query) {
             Ok(ids) => ids,
             Err(err) => {
-                eprintln!("No email found according to the request. Error: {:?}", err);
-                return senders;
+                return CommandResult::Failure(FailureType::UnknownError(err.to_string()));
             }
         };
 
         println!("Found {} emails matching the request.", search_result.len());
 
+        let mut senders: Vec<Sender> = Vec::new();
 
         for seq in search_result {
 
             // Fetch the sender of those mails
-            let result = self.imap_session.fetch(seq.to_string(), "ALL");
+            let result = self.imap_session.fetch(seq.to_string(), "ALL"); // TODO: We probably don't need to select ALL but maybe only HEADER or HEADER[SENDER].
 
             match result {
 
@@ -134,7 +121,11 @@ impl EmailProvider for EmailAccessProvider {
 
                         if let Some(envelop) = msg.envelope() {
                             if let Some(_senders) = &envelop.sender {
+
                                 for sender in _senders {
+
+                                    // TODO: Check is the sender hasn't already be seen if so add 1 to counter
+                                    // Maybe we could use a hashmap to keep track of which sender we saw and how many time
 
                                     // Check if mailbox and host are defined
                                     if let (Some(mailbox), Some(host)) = (sender.mailbox.clone(), sender.host.clone()) {
@@ -144,19 +135,23 @@ impl EmailProvider for EmailAccessProvider {
                                             None => None,
                                         };
 
-                                        senders.push(
-                                            Sender {
-                                                id: seq,
-                                                name: _name,
-                                                email: format!(
-                                                    "{}@{}",
-                                                    String::from_utf8(mailbox.to_vec()).expect("Failed to convert &[u8] of the mailbox to String"),
-                                                    String::from_utf8(host.to_vec()).expect("Failed to convert &[u8] of the host to String")
-                                                ), // Concatenate the mailbox and the host into a real mail
-                                            }
-                                        );
 
-                                        println!("mail sent to frontend")
+                                        senders.push(Sender {
+                                            id: seq,
+                                            name: _name,
+                                            email: format!(
+                                                "{}@{}",
+                                                String::from_utf8(mailbox.to_vec()).expect("Failed to convert &[u8] of the mailbox to String"),
+                                                String::from_utf8(host.to_vec()).expect("Failed to convert &[u8] of the host to String")
+                                            ), // Concatenate the mailbox and the host into a real mail
+                                        });
+                                        println!("{} senders", senders.len());
+
+                                        if senders.len() >= 20 {
+                                            println!("Sending {} senders", senders.len());
+                                            ret_channel.send(senders.to_vec()).unwrap();
+                                            senders.clear();
+                                        }
                                     }
                                 }
                             }
@@ -169,7 +164,7 @@ impl EmailProvider for EmailAccessProvider {
             }
         }
 
-        senders
+        CommandResult::Success
     }
 }
 

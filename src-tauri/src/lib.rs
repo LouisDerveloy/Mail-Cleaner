@@ -3,6 +3,7 @@ use tauri::ipc::{Channel, IpcResponse};
 
 use std::fmt::{Debug, Display};
 use std::future::Future;
+use std::ops::DerefMut;
 use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
 use crate::utils::{CommandResult, FailureType};
 use std::sync::{Mutex, MutexGuard};
@@ -12,33 +13,23 @@ mod email_access_provider;
 mod utils;
 
 #[tauri::command]
-fn get_list(state: State<'_, Mutex<AppState>>, ret_channel: Channel<Sender>, query: String) -> CommandResult {
+fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Vec<Sender>>, query: String) -> CommandResult {
 
-    let email_session = EmailAccessProvider::new(
-        MailServer::new(
-            String::from("imap.gmail.com"),
-            993,
-        ),
-        email_access_provider::Credentials::Oauth(OAuthCredentials::new(
-            String::from("louis.derveloy.gta5@gmail.com"),
-            String::from("ya29.a0AW4XtxhGd22JD_NENJ2FPxE-S3oUV06NCEOZpTtgGVVsnvXAJGOLGJtkkYqSxSVuT5AQvrfy5ijArzF862Rk3Dt8uR106-qR8GdchPWEwYXIHdyMDCfQiB5BzXnGXc7m8VV2JlAZ102dTe8LEClvFkqD4ueRNdDrJAjmyA1uaCgYKAbMSARESFQHGX2Miu6bcCQ9IY3QPx9aHj5tAEg0175"),
-        ))
-    );
+    match state.lock() {
+        Err(err) => CommandResult::Failure(FailureType::UnknownError(err.to_string())),
 
-    let mut email_session = email_session;
-
-    let senders: Vec<Sender> = email_session.get_inbox_senders_email_list(query);
-
-    if senders.is_empty() {
-        CommandResult::Failure(FailureType::NoSenderFound);
+        Ok(mut _state) => {
+            match (*_state).email_session {
+                None => {
+                app_handle.emit("open-login-page", "").expect("Couldn't emit open-login-page");
+                CommandResult::Failure(FailureType::NotConnected)
+                }
+                Some(ref mut session) => session.get_unique_senders_email_list(query, ret_channel)
+            }
+        }
     }
-
-    for sender in senders.into_iter() {
-        ret_channel.send(sender).unwrap();
-    }
-
-    CommandResult::Success
 }
+
 
 #[tauri::command]
 fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResult {

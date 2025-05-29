@@ -10,5 +10,6 @@ pub enum CommandResult {
 pub enum FailureType {
     NoSenderFound,
     FailedToLockState,
+    NotConnected,
     UnknownError(String),
 }
