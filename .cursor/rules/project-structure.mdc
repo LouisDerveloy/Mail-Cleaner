@@ -1,0 +1,26 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Structure
+
+This is a [Tauri](mdc:https:/tauri.app) application with a [Vue.js](mdc:https:/vuejs.org) frontend.
+
+## Frontend
+
+The frontend code, written in TypeScript and Vue.js, is located in the `src` directory. It is built using [Vite](mdc:https:/vitejs.dev).
+
+- **Vite Configuration**: `[vite.config.ts](mdc:vite.config.ts)`
+- **Main HTML File**: `[index.html](mdc:index.html)`
+- **Vue Views**: The main pages/views of the application are in `src/Views`. An example is the connection page: `[src/Views/connexion.vue](mdc:src/Views/connexion.vue)`.
+- **Vue Components**: Reusable UI components are stored in `src/Components`.
+
+## Backend
+
+The backend is a Rust application powered by Tauri, located in the `src-tauri` directory.
+
+- **Tauri Configuration**: The main application configuration, including window settings and capabilities, is in `[src-tauri/tauri.conf.json](mdc:src-tauri/tauri.conf.json)`.
+- **Rust Crate Definition**: The `Cargo.toml` file at `[src-tauri/Cargo.toml](mdc:src-tauri/Cargo.toml)` defines the Rust dependencies and project settings.
+- **Rust Source Code**: The backend Rust source code is located in `src-tauri/src`.
+
