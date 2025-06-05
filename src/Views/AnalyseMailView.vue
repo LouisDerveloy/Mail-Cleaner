@@ -7,10 +7,11 @@ const ret_channel = new Channel()
 let senders: Ref<Array<{id: number; name: string; email: string}>> = ref([])
 
 onMounted(() => {
-  ret_channel.onmessage = (sender: any) => {
+  ret_channel.onmessage = (_senders: any) => {
 
-    console.log("Pushed a sender email")
-    senders.value.push(sender)
+    for (let i=0; i<_senders.length; i++) {
+      senders.value.push(_senders[i]);
+    }
 
   }
 })
@@ -30,6 +31,7 @@ function test_button() {
 <h1>This is the Mail analyse View</h1>
   <button @click="test_button">Test Button</button>
   <button @click="start_analyse">Analyse</button>
+  <h1>Senders</h1>
   <div class="SenderList">
     <ul v-for="sender in senders" :key="sender.id" ref="ul_senders_list">
       <li>Added {{sender.email}}</li>

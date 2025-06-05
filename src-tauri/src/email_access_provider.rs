@@ -164,6 +164,11 @@ impl EmailProvider for EmailAccessProvider {
             }
         }
 
+        // Send the remaining senders
+        if senders.len() > 0 {
+            ret_channel.send(senders.to_vec()).unwrap();
+        }
+
         CommandResult::Success
     }
 }
