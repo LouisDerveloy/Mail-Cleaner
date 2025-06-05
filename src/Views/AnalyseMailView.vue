@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import {onMounted, shallowRef} from "vue";
+import { shallowRef } from "vue";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import type { Ref } from "vue";
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
+import { RecycleScroller } from 'vue-virtual-scroller'
 
 interface Sender {
   id: number;
@@ -9,16 +11,27 @@ interface Sender {
   email: string;
 }
 
-let senders: Ref<Sender[]> = shallowRef([])
+// The sender object with the additional unique ID for the scroller
+interface ScrollerSender extends Sender {
+  uid: number;
+}
+
+let senders: Ref<ScrollerSender[]> = shallowRef([])
+let nextId = 0;
+
 
 function start_analyse() {
   senders.value = []
+  nextId = 0
   const channel = new Channel()
-  
+
   channel.onmessage = (response: unknown) => {
-    console.log("channel response", response)
     const _senders = response as Sender[]
-    senders.value = [...senders.value, ..._senders]
+    const newSenders = _senders.map(s => ({
+      ...s,
+      uid: nextId++,
+    }));
+    senders.value = [...senders.value, ...newSenders]
   }
 
   invoke("get_list", {"retChannel": channel, "query": "BODY unsubscribe"})
@@ -32,32 +45,36 @@ function test_button() {
 
 </script>
 <template>
-<h1>This is the Mail analyse View</h1>
+  <h1>This is the Mail analyse View</h1>
   <button @click="test_button">Test Button</button>
   <button @click="start_analyse">Analyse</button>
-  <div class="SenderList">
-    <ul>
-      <li v-for="(sender, index) in senders" :key="index">
-        Added {{sender.email}}
-      </li>
-    </ul>
-  </div>
+  <RecycleScroller
+      class="SenderList"
+      :items="senders"
+      :item-size="32"
+      key-field="uid"
+      v-slot="{ item }"
+  >
+    <div class="sender-item">
+      Added {{ item.email }}
+    </div>
+  </RecycleScroller>
 </template>
 
 <style scoped>
-  .SenderList {
-    height: 50vh;
-    overflow: scroll;
-  }
+.SenderList {
+  height: 50vh;
+  overflow-y: auto;
+}
 
-  .SenderList li {
-    background-color: white;
-    width: 100%;
-    padding: .2rem;
-    list-style-type: none;
-  }
+.sender-item {
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+}
 
-  .SenderList li:hover {
-    background-color: #d9d9d9;
-  }
+.sender-item:hover {
+  background-color: #d9d9d9;
+}
 </style>
