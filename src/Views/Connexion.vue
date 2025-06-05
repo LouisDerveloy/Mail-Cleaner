@@ -6,7 +6,7 @@ import {useRouter} from "vue-router";
 const router = useRouter();
 
 const server = ref("");
-const port = ref(0);
+const port = ref(993);
 const token = ref("");
 const email = ref("");
 

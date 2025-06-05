@@ -1,23 +1,27 @@
 <script setup lang="ts">
-import {onMounted, ref} from "vue";
+import {onMounted, shallowRef} from "vue";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import type { Ref } from "vue";
 
-const ret_channel = new Channel()
-let senders: Ref<Array<{id: number; name: string; email: string}>> = ref([])
+interface Sender {
+  id: number;
+  name: string | null;
+  email: string;
+}
 
-onMounted(() => {
-  ret_channel.onmessage = (_senders: any) => {
-
-    for (let i=0; i<_senders.length; i++) {
-      senders.value.push(_senders[i]);
-    }
-
-  }
-})
+let senders: Ref<Sender[]> = shallowRef([])
 
 function start_analyse() {
-  invoke("get_list", {"retChannel": ret_channel, "query": "BODY unsubscribe"})
+  senders.value = []
+  const channel = new Channel()
+  
+  channel.onmessage = (response: unknown) => {
+    console.log("channel response", response)
+    const _senders = response as Sender[]
+    senders.value = [...senders.value, ..._senders]
+  }
+
+  invoke("get_list", {"retChannel": channel, "query": "BODY unsubscribe"})
 }
 
 function test_button() {
@@ -31,10 +35,11 @@ function test_button() {
 <h1>This is the Mail analyse View</h1>
   <button @click="test_button">Test Button</button>
   <button @click="start_analyse">Analyse</button>
-  <h1>Senders</h1>
   <div class="SenderList">
-    <ul v-for="sender in senders" :key="sender.id" ref="ul_senders_list">
-      <li>Added {{sender.email}}</li>
+    <ul>
+      <li v-for="(sender, index) in senders" :key="index">
+        Added {{sender.email}}
+      </li>
     </ul>
   </div>
 </template>
