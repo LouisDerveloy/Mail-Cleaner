@@ -100,7 +100,7 @@ impl EmailProvider for EmailAccessProvider {
         let search_result = match self.imap_session.search(query) {
             Ok(ids) => ids,
             Err(err) => {
-                return CommandResult::Failure(FailureType::UnknownError(err.to_string()));
+                return Err(FailureType::UnknownError(err.to_string()));
             }
         };
 
@@ -169,7 +169,7 @@ impl EmailProvider for EmailAccessProvider {
             ret_channel.send(senders.to_vec()).unwrap();
         }
 
-        CommandResult::Success
+        Ok(())
     }
 }
 

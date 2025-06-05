@@ -1,10 +1,6 @@
 use serde::Serialize;
 
-#[derive(Serialize)]
-pub enum CommandResult {
-    Success,
-    Failure(FailureType),
-}
+pub type CommandResult<T = ()> = Result<T, FailureType>;
 
 #[derive(Serialize)]
 pub enum FailureType {

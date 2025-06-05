@@ -13,16 +13,16 @@ mod email_access_provider;
 mod utils;
 
 #[tauri::command]
-fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Vec<Sender>>, query: String) -> CommandResult {
+async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Vec<Sender>>, query: String) -> CommandResult {
 
     match state.lock() {
-        Err(err) => CommandResult::Failure(FailureType::UnknownError(err.to_string())),
+        Err(err) => Err(FailureType::UnknownError(err.to_string())),
 
         Ok(mut _state) => {
             match (*_state).email_session {
                 None => {
-                app_handle.emit("open-login-page", "").expect("Couldn't emit open-login-page");
-                CommandResult::Failure(FailureType::NotConnected)
+                    app_handle.emit("open-login-page", "").expect("Couldn't emit open-login-page");
+                    Err(FailureType::NotConnected)
                 }
                 Some(ref mut session) => session.get_unique_senders_email_list(query, ret_channel)
             }
@@ -32,10 +32,10 @@ fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channe
 
 
 #[tauri::command]
-fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResult {
+async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResult {
     let guard: MutexGuard<AppState> = match state.lock().ok() {
         None => {
-            return CommandResult::Failure(FailureType::FailedToLockState);
+            return Err(FailureType::FailedToLockState);
         },
         Some(data) => data
     };
@@ -49,11 +49,11 @@ fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResu
         println!("email session is not none");
     }
 
-    CommandResult::Success
+    Ok(())
 }
 
 #[tauri::command]
-fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
+async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
     // println!("server: {}", server);
     // println!("port: {}", port.to_string());
     // println!("email: {}", email);
@@ -70,10 +70,10 @@ fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,em
             _state.email_session = Some(email_session);
 
         }
-        Err(_) => return CommandResult::Failure(FailureType::FailedToLockState)
+        Err(_) => return Err(FailureType::FailedToLockState)
     }
 
-    CommandResult::Success
+    Ok(())
 }
 
 #[derive(Default)]
