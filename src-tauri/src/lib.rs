@@ -54,10 +54,6 @@ async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Comma
 
 #[tauri::command]
 async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
-    // println!("server: {}", server);
-    // println!("port: {}", port.to_string());
-    // println!("email: {}", email);
-    // println!("token: {}", token);
 
     let provider = MailServer::new(server, port);
     let cred = Credentials::Oauth(OAuthCredentials::new(email, token));

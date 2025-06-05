@@ -11,27 +11,16 @@ interface Sender {
   email: string;
 }
 
-// The sender object with the additional unique ID for the scroller
-interface ScrollerSender extends Sender {
-  uid: number;
-}
-
-let senders: Ref<ScrollerSender[]> = shallowRef([])
-let nextId = 0;
+let senders: Ref<Sender[]> = shallowRef([])
 
 
 function start_analyse() {
   senders.value = []
-  nextId = 0
   const channel = new Channel()
 
   channel.onmessage = (response: unknown) => {
     const _senders = response as Sender[]
-    const newSenders = _senders.map(s => ({
-      ...s,
-      uid: nextId++,
-    }));
-    senders.value = [...senders.value, ...newSenders]
+    senders.value = [...senders.value, ..._senders]
   }
 
   invoke("get_list", {"retChannel": channel, "query": "BODY unsubscribe"})
@@ -52,7 +41,7 @@ function test_button() {
       class="SenderList"
       :items="senders"
       :item-size="32"
-      key-field="uid"
+      key-field="id"
       v-slot="{ item }"
   >
     <div class="sender-item">

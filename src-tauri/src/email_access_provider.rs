@@ -1,10 +1,9 @@
 use std::fmt::{Debug, Display};
+use std::collections::HashSet;
 use imap;
 use imap::{Connection, Session};
-use native_tls;
 use serde::Serialize;
 use tauri::ipc::Channel;
-use tauri::utils::acl::Value::List;
 use crate::utils::{CommandResult, FailureType};
 
 pub struct OAuthCredentials {
@@ -107,6 +106,8 @@ impl EmailProvider for EmailAccessProvider {
         println!("Found {} emails matching the request.", search_result.len());
 
         let mut senders: Vec<Sender> = Vec::new();
+        let mut seen_emails: HashSet<String> = HashSet::new();
+        let mut sender_index = 0;
 
         for seq in search_result {
 
@@ -130,27 +131,35 @@ impl EmailProvider for EmailAccessProvider {
                                     // Check if mailbox and host are defined
                                     if let (Some(mailbox), Some(host)) = (sender.mailbox.clone(), sender.host.clone()) {
 
-                                        let _name = match &sender.name {
-                                            Some(name) => Some(String::from_utf8_lossy(name.as_ref()).to_string()),
-                                            None => None,
-                                        };
+                                        let email = format!(
+                                            "{}@{}",
+                                            String::from_utf8(mailbox.to_vec()).expect("Failed to convert &[u8] of the mailbox to String"),
+                                            String::from_utf8(host.to_vec()).expect("Failed to convert &[u8] of the host to String")
+                                        );
+
+                                        // Check if we have already processed this email address.
+                                        // `seen_emails.insert()` returns true only if the email is new to the set.
+                                        if seen_emails.insert(email.clone()) {
+                                            let _name = match &sender.name {
+                                                Some(name) => Some(String::from_utf8_lossy(name.as_ref()).to_string()),
+                                                None => None,
+                                            };
 
 
-                                        senders.push(Sender {
-                                            id: seq,
-                                            name: _name,
-                                            email: format!(
-                                                "{}@{}",
-                                                String::from_utf8(mailbox.to_vec()).expect("Failed to convert &[u8] of the mailbox to String"),
-                                                String::from_utf8(host.to_vec()).expect("Failed to convert &[u8] of the host to String")
-                                            ), // Concatenate the mailbox and the host into a real mail
-                                        });
-                                        println!("{} senders", senders.len());
+                                            senders.push(Sender {
+                                                id: sender_index,
+                                                name: _name,
+                                                email,
+                                            });
+                                            println!("{} senders", senders.len());
 
-                                        if senders.len() >= 20 {
-                                            println!("Sending {} senders", senders.len());
-                                            ret_channel.send(senders.to_vec()).unwrap();
-                                            senders.clear();
+                                            sender_index += 1;
+
+                                            if senders.len() >= 20 {
+                                                println!("Sending {} senders", senders.len());
+                                                ret_channel.send(senders.to_vec()).unwrap();
+                                                senders.clear();
+                                            }
                                         }
                                     }
                                 }
