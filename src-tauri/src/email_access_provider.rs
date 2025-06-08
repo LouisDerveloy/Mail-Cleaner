@@ -73,21 +73,24 @@ pub struct Sender {
 }
 
 impl EmailAccessProvider {
-    pub fn new(mail_server: MailServer, credentials: Credentials) -> Self {
+    pub fn new(mail_server: MailServer, credentials: Credentials) -> Result<Self, FailureType> {
 
-        let client = imap::ClientBuilder::new(mail_server.domain, mail_server.port).connect().unwrap();
+        let client = imap::ClientBuilder::new(mail_server.domain, mail_server.port).connect()
+            .map_err(|e| FailureType::ImapConnectionError(e.to_string()))?;
 
         // Login to the server based on what credentials where chosen by the user.
         let mut imap_session: Session<Connection> = match credentials {
-            Credentials::Password(credentials) => client.login(credentials.user, credentials.password).unwrap(),
-            Credentials::Oauth(credentials) => client.authenticate("XOAUTH2", &credentials, ).unwrap(),
+            Credentials::Password(credentials) => client.login(credentials.user, credentials.password)
+                .map_err(|(e, _)| FailureType::ImapConnectionError(e.to_string()))?,
+            Credentials::Oauth(credentials) => client.authenticate("XOAUTH2", &credentials, )
+                .map_err(|(e, _)| FailureType::ImapConnectionError(e.to_string()))?,
         };
 
-        imap_session.select("INBOX").unwrap();
+        imap_session.select("INBOX").map_err(|e| FailureType::ImapConnectionError(e.to_string()))?;
 
-        EmailAccessProvider {
+        Ok(EmailAccessProvider {
             imap_session,
-        }
+        })
     }
 }
 

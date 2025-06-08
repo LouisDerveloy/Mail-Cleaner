@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::ipc::{Channel};
-use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
+use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender};
 use crate::utils::{CommandResult, FailureType};
 use std::sync::{Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -56,25 +56,7 @@ async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Comma
     Ok(())
 }
 
-#[tauri::command]
-async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
 
-    let provider = MailServer::new(server, port);
-    let cred = Credentials::Oauth(OAuthCredentials::new(email, token));
-
-    let email_session = EmailAccessProvider::new(provider.clone(), cred);
-
-    match state.lock() {
-        Ok(mut _state) => {
-            _state.mail_server = Some(provider);
-            _state.email_session = Some(email_session);
-
-        }
-        Err(_) => return Err(FailureType::FailedToLockState)
-    }
-
-    Ok(())
-}
 
 #[tauri::command]
 async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, sender_ids: Vec<u32>) -> CommandResult {
@@ -103,6 +85,44 @@ async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle
     Ok(())
 }
 
+#[tauri::command]
+async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
+
+    let provider = MailServer::new(server, port);
+    let cred = Credentials::Oauth(OAuthCredentials::new(email, token));
+
+    let email_session = EmailAccessProvider::new(provider.clone(), cred)?;
+
+    match state.lock() {
+        Ok(mut _state) => {
+            _state.mail_server = Some(provider);
+            _state.email_session = Some(email_session);
+
+        }
+        Err(_) => return Err(FailureType::FailedToLockState)
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn password_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16, email: String, password: String) -> CommandResult {
+    let provider = MailServer::new(server, port);
+    let cred = Credentials::Password(PasswordCredentials::new(email, password));
+
+    let email_session = EmailAccessProvider::new(provider.clone(), cred)?;
+
+    match state.lock() {
+        Ok(mut _state) => {
+            _state.mail_server = Some(provider);
+            _state.email_session = Some(email_session);
+        }
+        Err(_) => return Err(FailureType::FailedToLockState)
+    }
+
+    Ok(())
+}
+
 #[derive(Default)]
 struct AppState {
     email_session: Option<EmailAccessProvider>,
@@ -120,7 +140,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_list, test, token_connect, delete_senders])
+        .invoke_handler(tauri::generate_handler![get_list, test, token_connect, delete_senders, password_connect])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

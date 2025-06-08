@@ -140,6 +140,7 @@ async function deleteSelected() {
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
+  justify-content: end;
   align-items: center;
   column-gap: .5rem;
   row-gap: .25rem;
