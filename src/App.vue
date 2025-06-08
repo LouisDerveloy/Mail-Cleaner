@@ -48,6 +48,7 @@ const open_login_page_event = listen("open-login-page", () => {
 .content {
   width: 100%;
   height: 100%;
+  padding: .5rem;
 }
 
 .app-main {
@@ -55,5 +56,15 @@ const open_login_page_event = listen("open-login-page", () => {
   height: 100%;
   flex-direction: row;
   justify-content: stretch;
+}
+
+button {
+  padding: .25rem 1rem;
+  margin: .25rem;
+  border: none;
+  background: #45b2f1;
+  cursor: pointer;
+  text-transform: uppercase;
+  color: rgb(20, 20, 20);
 }
 </style>

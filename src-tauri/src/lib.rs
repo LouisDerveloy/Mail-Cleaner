@@ -1,9 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri::ipc::{Channel, IpcResponse};
-
-use std::fmt::{Debug, Display};
-use std::future::Future;
-use std::ops::DerefMut;
+use tauri::ipc::{Channel};
 use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, Sender};
 use crate::utils::{CommandResult, FailureType};
 use std::sync::{Mutex, MutexGuard};
@@ -16,15 +12,23 @@ mod utils;
 async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Vec<Sender>>, query: String) -> CommandResult {
 
     match state.lock() {
-        Err(err) => Err(FailureType::UnknownError(err.to_string())),
+        Err(_) => Err(FailureType::FailedToLockState),
 
         Ok(mut _state) => {
-            match (*_state).email_session {
+            match _state.email_session {
                 None => {
                     app_handle.emit("open-login-page", "").expect("Couldn't emit open-login-page");
                     Err(FailureType::NotConnected)
                 }
-                Some(ref mut session) => session.get_unique_senders_email_list(query, ret_channel)
+                Some(ref mut session) => {
+                    match session.get_unique_senders_email_list(query, ret_channel) {
+                        Ok(emails_list) => {
+                            _state.emails_list = Some(emails_list);
+                            Ok(())
+                        },
+                        Err(err) => Err(err)
+                    }
+                }
             }
         }
     }
@@ -72,10 +76,17 @@ async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: 
     Ok(())
 }
 
+#[tauri::command]
+async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, sender_ids: Vec<u32>) -> CommandResult {
+    println!("delete_senders: {:?}", sender_ids);
+    Ok(())
+}
+
 #[derive(Default)]
 struct AppState {
     email_session: Option<EmailAccessProvider>,
-    mail_server: Option<MailServer>
+    mail_server: Option<MailServer>,
+    emails_list: Option<Vec<String>>
 }
 
 
@@ -86,8 +97,9 @@ pub fn run() {
             app.manage(Mutex::new(AppState::default()));
             Ok(())
         })
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_list, test, token_connect])
+        .invoke_handler(tauri::generate_handler![get_list, test, token_connect, delete_senders])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
