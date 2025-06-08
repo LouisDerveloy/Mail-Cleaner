@@ -40,12 +40,6 @@ function start_search() {
   })
 }
 
-function test_button() {
-  invoke("test").then(value => {
-    console.dir(value)
-  })
-}
-
 function onSelect(id: number) {
   console.log("selected: ", id)
   senders.value = senders.value.map(s => s.id === id ? { ...s, selected: true } : s)
@@ -99,28 +93,34 @@ async function deleteSelected() {
 <template>
   <section class="analyse-view">
     <section class="controls">
-    <button @click="test_button">Test Button</button>
-    <input type="text" name="query" id="query" v-model="query">
-    <button @click="start_search" :disabled="searching">Search</button>
-    <button @click="selectAll">Select All</button>
-    <button @click="unselectAll">Unselect All</button>
-    <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
-  </section>
-  <h3>Selected: {{ selectedCount }}</h3>
-  <div class="spacer"></div>
-  <RecycleScroller
-      class="SenderList"
-      :items="senders"
-      :item-size="32"
-      key-field="id"
-      v-slot="{ item }"
-  >
-    <div class="sender-item">
-      <button v-if="!item.selected" class="select-button" @click="onSelect(item.id)">Select</button>
-      <button v-else class="unselect-button" @click="onUnselect(item.id)">Unselect</button>
-      <span>{{ item.email }}</span>
-    </div>
-  </RecycleScroller>
+      <div class="search-bar">
+        <input type="text" name="query" id="query" v-model="query" placeholder="Search..." @keyup.enter="start_search" :disabled="searching">
+        <button @click="start_search" :disabled="searching" class="search-button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+      </div>
+      <RouterLink to="user/connexion">Connect</RouterLink>
+      <button @click="selectAll">Select All</button>
+      <button @click="unselectAll">Unselect All</button>
+      <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
+    </section>
+    <h3>Selected: {{ selectedCount }}</h3>
+    <RecycleScroller
+        class="SenderList"
+        :items="senders"
+        :item-size="32"
+        key-field="id"
+        v-slot="{ item }"
+    >
+      <div class="sender-item">
+        <button v-if="!item.selected" class="select-button" @click="onSelect(item.id)">Select</button>
+        <button v-else class="unselect-button" @click="onUnselect(item.id)">Unselect</button>
+        <span>{{ item.email }}</span>
+      </div>
+    </RecycleScroller>
   </section>
 </template>
 
@@ -131,7 +131,9 @@ async function deleteSelected() {
   padding: .25rem;
   display: flex;
   flex-direction: column;
-  gap: .5rem;
+  gap: 1rem;
+
+  margin-top: .5rem;
 }
 
 .controls {
@@ -143,15 +145,10 @@ async function deleteSelected() {
   row-gap: .25rem;
 }
 
-.spacer {
-  height: 2px;
-  width: 95%;
-  margin: 0 auto;
-  background-color: #cfcfcf;
-}
-
 .SenderList {
   overflow-y: scroll;
+  background-color: #c7c7c7;
+  border-radius: 5px;
 }
 
 .sender-item {
@@ -172,5 +169,54 @@ async function deleteSelected() {
 
 .sender-item:hover {
   background-color: #d9d9d9;
+}
+
+.search-bar {
+  margin-right: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background-color: #dfdfdf;
+  border-radius: 25px;
+  padding-left: 8px;
+  max-width: 600px;
+  border: 2px solid #cfcfcf;
+}
+
+.search-bar input {
+  flex-grow: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0 .5rem;
+  width: 100%;
+}
+
+.search-bar input::placeholder {
+  color: #a0a0a0;
+}
+
+.search-bar .search-button {
+  border: none;
+  background: white;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.search-bar .search-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.search-bar .search-button svg {
+  stroke: #f55151;
 }
 </style>

@@ -12,9 +12,6 @@ const open_login_page_event = listen("open-login-page", () => {
 </script>
 <template>
   <main class="app-main">
-    <aside>
-      <RouterLink to="/">H</RouterLink>
-    </aside>
     <section class="content">
       <RouterView />
     </section>
@@ -57,13 +54,19 @@ const open_login_page_event = listen("open-login-page", () => {
   justify-content: stretch;
 }
 
-button {
+button, a {
   padding: .25rem 1rem;
   margin: .25rem;
   border: none;
+  text-decoration: none;
   background: #45b2f1;
   cursor: pointer;
   text-transform: uppercase;
   color: rgb(20, 20, 20);
+}
+
+button:disabled, a:disabled {
+  opacity: .7;
+  cursor: not-allowed;
 }
 </style>
