@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, shallowRef, computed } from "vue";
 import { invoke, Channel } from "@tauri-apps/api/core";
-import { confirm } from "@tauri-apps/plugin-dialog";
+import { confirm, message } from "@tauri-apps/plugin-dialog";
 import type { Ref } from "vue";
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import { RecycleScroller } from 'vue-virtual-scroller'
@@ -75,6 +75,25 @@ async function unselectAll() {
   }
 }
 
+async function deleteSelected() {
+  if (selectedCount.value === 0) {
+    await message("There are no emails selected to delete.", { title: "Delete Senders", kind: "info" });
+    return;
+  }
+
+  const confirmed = await confirm(`Are you sure you want to delete all emails coming from ${selectedCount.value} senders?`, {
+    title: "Confirm Deletion",
+    kind: "warning",
+  });
+
+  if (confirmed) {
+    const idsToDelete = senders.value.filter(s => s.selected).map(s => s.id);
+    
+    await invoke("delete_senders", { senderIds: idsToDelete });
+    senders.value = [];
+  }
+}
+
 </script>
 <template>
   <h1>This is the Mail analyse View</h1>
@@ -83,6 +102,7 @@ async function unselectAll() {
     <button @click="start_analyse" :disabled="analysing">Analyse</button>
     <button @click="selectAll">Select All</button>
     <button @click="unselectAll">Unselect All</button>
+    <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
     <span>Selected: {{ selectedCount }}</span>
   </section>
   <RecycleScroller
@@ -105,6 +125,7 @@ async function unselectAll() {
 .controls {
   display: flex;
   flex-direction: row;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -120,7 +141,7 @@ async function unselectAll() {
   gap: 1rem;
 }
 
-.unselect-button {
+.unselect-button, .delete-button {
   background: #f55151;
 }
 
