@@ -78,7 +78,28 @@ async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: 
 
 #[tauri::command]
 async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, sender_ids: Vec<u32>) -> CommandResult {
-    println!("delete_senders: {:?}", sender_ids);
+    let mut guard = match state.lock() {
+        Ok(guard) => guard,
+        Err(_) => return Err(FailureType::FailedToLockState)
+    };
+
+    let emails_to_delete: Vec<String> = if let Some(emails_list) = &guard.emails_list {
+        sender_ids.iter().filter_map(|&id| emails_list.get(id as usize).cloned()).collect()
+    } else {
+        return Err(FailureType::UnknownError("Email list not available".to_string()));
+    };
+
+    if emails_to_delete.is_empty() {
+        return Err(FailureType::UnknownError("No valid sender emails found for given IDs.".to_string()));
+    }
+
+    if let Some(session) = &mut guard.email_session {
+        session.delete_senders(emails_to_delete)?;
+        guard.emails_list = None; // Clear the list after deletion
+    } else {
+        return Err(FailureType::NotConnected);
+    }
+
     Ok(())
 }
 

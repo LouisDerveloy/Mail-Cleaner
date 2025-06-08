@@ -47,13 +47,12 @@ const open_login_page_event = listen("open-login-page", () => {
 
 .content {
   width: 100%;
-  height: 100%;
-  padding: .5rem;
+  height: 100vh;
 }
 
 .app-main {
   display: flex;
-  height: 100%;
+  height: 100vh;
   flex-direction: row;
   justify-content: stretch;
 }

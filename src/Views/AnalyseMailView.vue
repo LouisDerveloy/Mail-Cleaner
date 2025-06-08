@@ -17,14 +17,15 @@ interface DisplaySender extends Sender {
 }
 
 let senders: Ref<DisplaySender[]> = shallowRef([])
-let analysing = ref(false)
+let searching = ref(false)
+let query = ref("BODY unsubscribe")
 
 const selectedCount = computed(() => {
   return senders.value.filter(s => s.selected).length
 })
 
-function start_analyse() {
-  analysing.value = true
+function start_search() {
+  searching.value = true
   senders.value = []
   const channel = new Channel()
 
@@ -34,8 +35,8 @@ function start_analyse() {
     senders.value = [...senders.value, ...displaySenders]
   }
 
-  invoke("get_list", {"retChannel": channel, "query": "BODY unsubscribe"}).then(() => {
-    analysing.value = false
+  invoke("get_list", {"retChannel": channel, "query": query.value}).then(() => {
+    searching.value = false
   })
 }
 
@@ -96,15 +97,17 @@ async function deleteSelected() {
 
 </script>
 <template>
-  <h1>This is the Mail analyse View</h1>
-  <section class="controls">
+  <section class="analyse-view">
+    <section class="controls">
     <button @click="test_button">Test Button</button>
-    <button @click="start_analyse" :disabled="analysing">Analyse</button>
+    <input type="text" name="query" id="query" v-model="query">
+    <button @click="start_search" :disabled="searching">Search</button>
     <button @click="selectAll">Select All</button>
     <button @click="unselectAll">Unselect All</button>
     <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
-    <span>Selected: {{ selectedCount }}</span>
   </section>
+  <h3>Selected: {{ selectedCount }}</h3>
+  <div class="spacer"></div>
   <RecycleScroller
       class="SenderList"
       :items="senders"
@@ -118,19 +121,37 @@ async function deleteSelected() {
       <span>{{ item.email }}</span>
     </div>
   </RecycleScroller>
+  </section>
 </template>
 
 <style scoped>
 
+.analyse-view {
+  height: 100%;
+  padding: .25rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
 .controls {
   display: flex;
+  flex-wrap: wrap;
   flex-direction: row;
   align-items: center;
-  gap: 1rem;
+  column-gap: .5rem;
+  row-gap: .25rem;
+}
+
+.spacer {
+  height: 2px;
+  width: 95%;
+  margin: 0 auto;
+  background-color: #cfcfcf;
 }
 
 .SenderList {
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 .sender-item {

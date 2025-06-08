@@ -58,6 +58,7 @@ impl MailServer {
 
 pub trait EmailProvider {
     fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Vec<Sender>>) -> CommandResult<Vec<String>>;
+    fn delete_senders(&mut self, sender_emails: Vec<String>) -> CommandResult;
 }
 
 pub struct EmailAccessProvider {
@@ -128,38 +129,6 @@ impl EmailProvider for EmailAccessProvider {
                                     // Check if mailbox and host are defined
                                     if let (Some(mailbox), Some(host)) = (sender.mailbox.clone(), sender.host.clone()) {
 
-
-                                        /*
-                                        Maybe we should store each sender in a vector so the sender's id is the sender's index in the vector. So when the frontend send us a list of sender we need to erase, it just has to pass a list of id and not the whole sender email.
-                                        Therefore we could retrieve the entire email from the vector. These would cause much shorter messages to be sent from the frontend.
-
-                                        This is an example of how we could delete all the messages from a sender:
-                                            // 2. Select INBOX
-                                            session.select("INBOX")?;
-
-                                            // 3. Search for emails from the sender
-                                            let search_criteria = format!("FROM \"{}\"", sender);
-                                            let messages = session.search(search_criteria)?;
-
-                                            if messages.is_empty() {
-                                                println!("No emails found from this sender.");
-                                            } else {
-                                                // 4. Mark each email as \Deleted
-                                                for uid in messages.iter() {
-                                                    session.store(format!("{}", uid), "+FLAGS (\\Deleted)")?;
-                                                }
-
-                                                // 5. Expunge to delete them permanently
-                                                session.expunge()?;
-                                                println!("Deleted {} emails from {}", messages.len(), sender);
-                                            }
-
-                                            // Logout
-                                            session.logout()?;
-                                            Ok(())
-                                        }
-                                        */
-
                                         let email = format!(
                                             "{}@{}",
                                             String::from_utf8(mailbox.to_vec()).expect("Failed to convert &[u8] of the mailbox to String"),
@@ -209,6 +178,46 @@ impl EmailProvider for EmailAccessProvider {
         }
 
         Ok(emails_list)
+    }
+
+    fn delete_senders(&mut self, sender_emails: Vec<String>) -> CommandResult {
+        let mut uids_to_delete = std::collections::BTreeSet::new();
+
+        for sender_email in sender_emails {
+            println!("Searching emails from: {}", sender_email);
+
+            let search_criteria = format!("FROM \"{}\"", sender_email);
+            let messages = self.imap_session.search(search_criteria)
+                .map_err(|e| FailureType::UnknownError(e.to_string()))?;
+
+            for uid in messages.iter() {
+                uids_to_delete.insert(*uid);
+            }
+        }
+
+        if uids_to_delete.is_empty() {
+            println!("No emails to delete.");
+            return Ok(());
+        }
+
+        let sequence_set = uids_to_delete
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+
+        if !sequence_set.is_empty() {
+            println!("Marking {} emails for deletion.", sequence_set.split(',').count());
+            self.imap_session.store(&sequence_set, "+FLAGS (\\Deleted)")
+                .map_err(|e| FailureType::UnknownError(e.to_string()))?;
+
+            println!("Expunging marked emails.");
+            self.imap_session.expunge()
+                .map_err(|e| FailureType::UnknownError(e.to_string()))?;
+            println!("Successfully expunged emails.");
+        }
+
+        Ok(())
     }
 }
 
