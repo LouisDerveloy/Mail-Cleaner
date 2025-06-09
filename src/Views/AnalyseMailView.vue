@@ -6,6 +6,8 @@ import type { Ref } from "vue";
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import { handleError } from "../lib/error";
+import noResultsImage from "/src/assets/images/no-results.png";
+import searchingImage from "/src/assets/images/searching.png";
 
 interface Sender {
   id: number;
@@ -25,6 +27,7 @@ interface Progress {
 
 let senders: Ref<DisplaySender[]> = shallowRef([])
 let isProcessing = ref(false)
+let searching = ref(false)
 let query = ref("BODY unsubscribe")
 let progress = ref({ current: 0, total: 0 });
 
@@ -34,6 +37,7 @@ const selectedCount = computed(() => {
 
 function start_search() {
   isProcessing.value = true
+  searching.value = true
   senders.value = []
   progress.value = { current: 0, total: 0 };
   const channel = new Channel()
@@ -46,9 +50,11 @@ function start_search() {
     const displaySenders: DisplaySender[] = result.map(s => ({ ...s, selected: false }))
     senders.value = displaySenders;
     isProcessing.value = false
+    searching.value = false
   }).catch(async (err) => {
     await handleError(err);
     isProcessing.value = false;
+    searching.value = false
   });
 }
 
@@ -153,8 +159,13 @@ async function deleteSelected() {
         <span class="occurrence">{{ item.occurrence }}</span>
       </div>
     </RecycleScroller>
-    <div class="no-results" v-else>
-      <span>You have no emails to delete. Please search for emails to delete.</span>
+    <div class="info" v-else-if="!searching">
+      <img :src="noResultsImage" alt="No results" class="cat-image">
+      <span>I can't find any mails meow. Maybe you should start a search.</span>
+    </div>
+    <div class="info" v-else>
+      <img :src="searchingImage" alt="Searching..." class="cat-image">
+      <span>I'm searching for your emails... I hope i will get some treats for that.</span>
     </div>
     </section>
     <div class="progress-container" v-if="isProcessing || progress.total > 0">
@@ -193,15 +204,24 @@ async function deleteSelected() {
   height: 100%;
 }
 
-.table .no-results {
+.table .info {
   height: 100%;
   width: 100%;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
 }
 
-.table .no-results span {
+.table .info img {
+  width: 300px;
+  height: 300px;
+}
+
+.table .info span {
   display: block;
+  font-size: 2rem;
 }
 
 .table .header {
