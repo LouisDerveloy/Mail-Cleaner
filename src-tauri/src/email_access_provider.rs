@@ -59,7 +59,7 @@ impl MailServer {
 
 pub trait EmailProvider {
     fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Progress>) -> CommandResult<Vec<Sender>>;
-    fn delete_senders(&mut self, sender_emails: Vec<String>) -> CommandResult;
+    fn delete_senders(&mut self, sender_emails: Vec<String>, ret_channel: Channel<Progress>) -> CommandResult;
 }
 
 pub struct EmailAccessProvider {
@@ -163,10 +163,11 @@ impl EmailProvider for EmailAccessProvider {
         Ok(final_senders)
     }
 
-    fn delete_senders(&mut self, sender_emails: Vec<String>) -> CommandResult {
+    fn delete_senders(&mut self, sender_emails: Vec<String>, ret_channel: Channel<Progress>) -> CommandResult {
         let mut uids_to_delete = std::collections::BTreeSet::new();
+        let mut progress = Progress { current: 0, total: 0 };
 
-        for sender_email in sender_emails {
+        for sender_email in &sender_emails {
             println!("Searching emails from: {}", sender_email);
 
             let search_criteria = format!("FROM \"{}\"", sender_email);
@@ -174,31 +175,47 @@ impl EmailProvider for EmailAccessProvider {
                 .map_err(|e| FailureType::UnknownError(e.to_string()))?;
 
             for uid in messages.iter() {
-                uids_to_delete.insert(*uid);
+                if uids_to_delete.insert(*uid) {
+                    progress.total += 1;
+                }
             }
+            ret_channel.send(progress.clone()).unwrap();
         }
+
 
         if uids_to_delete.is_empty() {
             println!("No emails to delete.");
             return Ok(());
         }
 
-        let sequence_set = uids_to_delete
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
+        let uids_vec: Vec<u32> = uids_to_delete.into_iter().collect();
 
-        if !sequence_set.is_empty() {
-            println!("Marking {} emails for deletion.", sequence_set.split(',').count());
-            self.imap_session.store(&sequence_set, "+FLAGS (\\Deleted)")
-                .map_err(|e| FailureType::UnknownError(e.to_string()))?;
+        // Batch deletion
+        for chunk in uids_vec.chunks(100) {
+            let sequence_set = chunk
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
 
-            println!("Expunging marked emails.");
-            self.imap_session.expunge()
-                .map_err(|e| FailureType::UnknownError(e.to_string()))?;
-            println!("Successfully expunged emails.");
+            if !sequence_set.is_empty() {
+                println!("Marking {} emails for deletion.", chunk.len());
+                self.imap_session.store(&sequence_set, "+FLAGS (\\Deleted)")
+                    .map_err(|e| FailureType::UnknownError(e.to_string()))?;
+                
+                progress.current += chunk.len() as u32;
+                ret_channel.send(progress.clone()).unwrap();
+            }
         }
+
+        println!("Expunging marked emails.");
+        self.imap_session.expunge()
+            .map_err(|e| FailureType::UnknownError(e.to_string()))?;
+        println!("Successfully expunged emails.");
+        
+        // Ensure final progress is sent.
+        progress.current = progress.total;
+        ret_channel.send(progress.clone()).unwrap();
 
         Ok(())
     }

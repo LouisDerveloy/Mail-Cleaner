@@ -24,7 +24,7 @@ interface Progress {
 };
 
 let senders: Ref<DisplaySender[]> = shallowRef([])
-let searching = ref(false)
+let isProcessing = ref(false)
 let query = ref("BODY unsubscribe")
 let progress = ref({ current: 0, total: 0 });
 
@@ -33,7 +33,7 @@ const selectedCount = computed(() => {
 })
 
 function start_search() {
-  searching.value = true
+  isProcessing.value = true
   senders.value = []
   progress.value = { current: 0, total: 0 };
   const channel = new Channel()
@@ -45,10 +45,10 @@ function start_search() {
   invoke<Sender[]>("get_list", {"retChannel": channel, "query": query.value}).then((result) => {
     const displaySenders: DisplaySender[] = result.map(s => ({ ...s, selected: false }))
     senders.value = displaySenders;
-    searching.value = false
+    isProcessing.value = false
   }).catch(async (err) => {
     await handleError(err);
-    searching.value = false;
+    isProcessing.value = false;
   });
 }
 
@@ -96,11 +96,21 @@ async function deleteSelected() {
   if (confirmed) {
     const idsToDelete = senders.value.filter(s => s.selected).map(s => s.id);
     
+    isProcessing.value = true;
+    progress.value = { current: 0, total: 0 };
+    const channel = new Channel();
+
+    channel.onmessage = (response: unknown) => {
+      progress.value = response as Progress;
+    };
+
     try {
-      await invoke("delete_senders", { senderIds: idsToDelete });
+      await invoke("delete_senders", { senderIds: idsToDelete, retChannel: channel });
       senders.value = senders.value.filter(s => !s.selected);
     } catch (err) {
       await handleError(err);
+    } finally {
+      isProcessing.value = false;
     }
   }
 }
@@ -110,8 +120,8 @@ async function deleteSelected() {
   <section class="analyse-view">
     <section class="controls">
       <div class="search-bar">
-        <input type="text" name="query" id="query" v-model="query" placeholder="Search..." @keyup.enter="start_search" :disabled="searching">
-        <button @click="start_search" :disabled="searching" class="search-button">
+        <input type="text" name="query" id="query" v-model="query" placeholder="Search..." @keyup.enter="start_search" :disabled="isProcessing">
+        <button @click="start_search" :disabled="isProcessing" class="search-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -147,7 +157,7 @@ async function deleteSelected() {
       <span>You have no emails to delete. Please search for emails to delete.</span>
     </div>
     </section>
-    <div class="progress-container" v-if="searching || progress.total > 0">
+    <div class="progress-container" v-if="isProcessing || progress.total > 0">
       <progress :value="progress.current" :max="progress.total" />
       <span>{{ progress.current }} / {{ progress.total }}</span>
     </div>

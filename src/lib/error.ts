@@ -7,7 +7,8 @@ type FailureType =
   | { ImapConnectionError: string }
   | 'FailedToLockState'
   | 'NotConnected'
-  | { UnknownError: string };
+  | { UnknownError: string }
+  | 'IDDidntMatch';
 
 function getErrorMessage(error: unknown): string {
     // Type assertion to treat the unknown error as a potential FailureType
@@ -21,6 +22,8 @@ function getErrorMessage(error: unknown): string {
                 return "An internal application error occurred. Please try restarting the application if the problem persists.";
             case 'NotConnected':
                 return "You are not connected to a mail server. Please go to the connection page.";
+            case 'IDDidntMatch':
+                return "An internal application error occurred due to an ID mismatch. Please try the operation again.";
         }
     }
 

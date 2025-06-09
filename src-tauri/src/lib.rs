@@ -59,7 +59,7 @@ async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Comma
 
 
 #[tauri::command]
-async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, sender_ids: Vec<u32>) -> CommandResult {
+async fn delete_senders(state: State<'_, Mutex<AppState>>, sender_ids: Vec<u32>, ret_channel: Channel<Progress>) -> CommandResult {
     let mut guard = match state.lock() {
         Ok(guard) => guard,
         Err(_) => return Err(FailureType::FailedToLockState)
@@ -85,7 +85,7 @@ async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle
     }
 
     if let Some(session) = &mut guard.email_session {
-        session.delete_senders(emails_to_delete)?;
+        session.delete_senders(emails_to_delete, ret_channel)?;
     } else {
         return Err(FailureType::NotConnected);
     }
