@@ -2,6 +2,7 @@
 import {ref} from "vue";
 import {invoke} from "@tauri-apps/api/core";
 import {useRouter} from "vue-router";
+import { handleError } from "../lib/error";
 
 const router = useRouter();
 
@@ -19,9 +20,10 @@ function TokenConnect() {
     port: port.value,
     email: email.value,
     token: token.value
-  }).then(value => { console.log("TokenConnect Result : ", value) })
-
-  router.push("/")
+  }).then(value => { 
+    console.log("TokenConnect Result : ", value) 
+    router.push("/")
+  }).catch(handleError)
 }
 
 function PasswordConnect() {
@@ -30,9 +32,10 @@ function PasswordConnect() {
     port: port.value,
     email: email.value,
     password: password.value
-  }).then(value => { console.log("PasswordConnect Result : ", value) })
-
-  router.push("/")
+  }).then(value => { 
+    console.log("PasswordConnect Result : ", value)
+    router.push("/")
+  }).catch(handleError)
 }
 
 </script>
@@ -92,24 +95,33 @@ function PasswordConnect() {
 <style scoped>
 .connection-view {
   max-width: 800px;
+  width: 100%;
   margin: 4rem auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  height: 100%;
+  padding: 2rem;
 }
 
 .connection-view h1 {
+  width: 100%;
+  text-align: start;
   font-size: 2rem;
   font-weight: 100;
   text-transform: uppercase;
-  margin-bottom: 1rem;
 }
 
 .connection-type-selector {
   display: flex;
   justify-content: center;
-  margin-bottom: 2rem;
   height: 5rem;
   background: #f7f7f7;
   border-radius: 8px;
   box-shadow: 0px 0px 20px 9px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
 .connection-type-selector button {
@@ -146,15 +158,12 @@ function PasswordConnect() {
   border-radius: 8px;
   box-shadow: 0px 0px 20px 9px rgba(0, 0, 0, 0.1);
   border: none;
-}
-
-.connection-form .field {
-  margin-bottom: 1.5rem;
+  width: 100%;
 }
 
 .connection-form .field label {
   display: block;
-  margin-bottom: .5rem;
+  margin-bottom: .3rem;
   color: #333;
 }
 
@@ -164,6 +173,7 @@ function PasswordConnect() {
   border: 1px solid #ccc;
   border-radius: 4px;
   box-sizing: border-box; /* important */
+  margin-bottom: 1rem;
 }
 
 .connection-form button {

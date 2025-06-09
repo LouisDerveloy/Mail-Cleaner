@@ -5,6 +5,7 @@ import { confirm, message } from "@tauri-apps/plugin-dialog";
 import type { Ref } from "vue";
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import { RecycleScroller } from 'vue-virtual-scroller'
+import { handleError } from "../lib/error";
 
 interface Sender {
   id: number;
@@ -37,7 +38,10 @@ function start_search() {
 
   invoke("get_list", {"retChannel": channel, "query": query.value}).then(() => {
     searching.value = false
-  })
+  }).catch(async (err) => {
+    await handleError(err);
+    searching.value = false;
+  });
 }
 
 function onSelect(id: number) {
@@ -84,8 +88,12 @@ async function deleteSelected() {
   if (confirmed) {
     const idsToDelete = senders.value.filter(s => s.selected).map(s => s.id);
     
-    await invoke("delete_senders", { senderIds: idsToDelete });
-    senders.value = [];
+    try {
+      await invoke("delete_senders", { senderIds: idsToDelete });
+      senders.value = [];
+    } catch (err) {
+      await handleError(err);
+    }
   }
 }
 
