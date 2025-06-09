@@ -1,20 +1,28 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mailmanage",
-  "version": "0.0.1",
-  "identifier": "com.mailmanage.app",
+  "version": "0.2.0",
+  "identifier": "com.mailcleaner.app",
+  "mainBinaryName": "Mail Cleaner",
+  "productName": "Mail Cleaner",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "removeUnusedCommands": true
   },
   "app": {
     "windows": [
       {
-        "title": "mailmanage",
-        "width": 800,
-        "height": 600
+        "title": "Mail Cleaner",
+        "width": 1700,
+        "height": 900,
+        "minWidth": 520,
+        "minHeight": 500,
+        "acceptFirstMouse": false,
+        "center": true,
+        "dragDropEnabled": false,
+        "zoomHotkeysEnabled": false
       }
     ],
     "security": {
@@ -29,12 +37,14 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "Productivity",
     "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
+      "icons/mailcleaner_logo.jpg",
+      "icons/mailcleaner_logo.ico",
+      "icons/mailcleaner_logo.png"
+    ],
+    "longDescription": "Mail Cleaner is a tool that helps you clean your email inbox.",
+    "shortDescription": "Mail Cleaner is a tool that helps you clean your email inbox.",
+    "publisher": "https://github.com/LouisDerveloy"
   }
 }

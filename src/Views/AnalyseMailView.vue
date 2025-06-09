@@ -11,15 +11,22 @@ interface Sender {
   id: number;
   name: string | null;
   email: string;
+  occurrence: number;
 }
 
 interface DisplaySender extends Sender {
   selected: boolean;
 }
 
+interface Progress {
+  current: number,
+  total: number
+};
+
 let senders: Ref<DisplaySender[]> = shallowRef([])
 let searching = ref(false)
 let query = ref("BODY unsubscribe")
+let progress = ref({ current: 0, total: 0 });
 
 const selectedCount = computed(() => {
   return senders.value.filter(s => s.selected).length
@@ -28,15 +35,16 @@ const selectedCount = computed(() => {
 function start_search() {
   searching.value = true
   senders.value = []
+  progress.value = { current: 0, total: 0 };
   const channel = new Channel()
 
   channel.onmessage = (response: unknown) => {
-    const _senders = response as Sender[]
-    const displaySenders: DisplaySender[] = _senders.map(s => ({ ...s, selected: false }))
-    senders.value = [...senders.value, ...displaySenders]
+    progress.value = response as Progress;
   }
 
-  invoke("get_list", {"retChannel": channel, "query": query.value}).then(() => {
+  invoke<Sender[]>("get_list", {"retChannel": channel, "query": query.value}).then((result) => {
+    const displaySenders: DisplaySender[] = result.map(s => ({ ...s, selected: false }))
+    senders.value = displaySenders;
     searching.value = false
   }).catch(async (err) => {
     await handleError(err);
@@ -90,7 +98,7 @@ async function deleteSelected() {
     
     try {
       await invoke("delete_senders", { senderIds: idsToDelete });
-      senders.value = [];
+      senders.value = senders.value.filter(s => !s.selected);
     } catch (err) {
       await handleError(err);
     }
@@ -115,20 +123,34 @@ async function deleteSelected() {
       <button @click="unselectAll">Unselect All</button>
       <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
     </section>
-    <h3>Selected: {{ selectedCount }}</h3>
-    <RecycleScroller
+    <section class="table">
+      <div class="header">
+        <span>Email (Selected: {{ selectedCount }})</span>
+        <span>Occurrence</span>
+      </div>
+      <RecycleScroller
         class="SenderList"
         :items="senders"
         :item-size="32"
         key-field="id"
         v-slot="{ item }"
+        v-if="senders.length > 0"
     >
       <div class="sender-item">
         <button v-if="!item.selected" class="select-button" @click="onSelect(item.id)">Select</button>
         <button v-else class="unselect-button" @click="onUnselect(item.id)">Unselect</button>
         <span>{{ item.email }}</span>
+        <span class="occurrence">{{ item.occurrence }}</span>
       </div>
     </RecycleScroller>
+    <div class="no-results" v-else>
+      <span>You have no emails to delete. Please search for emails to delete.</span>
+    </div>
+    </section>
+    <div class="progress-container" v-if="searching || progress.total > 0">
+      <progress :value="progress.current" :max="progress.total" />
+      <span>{{ progress.current }} / {{ progress.total }}</span>
+    </div>
   </section>
 </template>
 
@@ -136,7 +158,7 @@ async function deleteSelected() {
 
 .analyse-view {
   height: 100%;
-  padding: .25rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -154,18 +176,51 @@ async function deleteSelected() {
   row-gap: .25rem;
 }
 
+.table {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+  height: 100%;
+}
+
+.table .no-results {
+  height: 100%;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.table .no-results span {
+  display: block;
+}
+
+.table .header {
+  padding: .7rem 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #cfcfcf;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .SenderList {
   overflow-y: scroll;
-  background-color: #c7c7c7;
   border-radius: 5px;
 }
 
 .sender-item {
   height: 32px;
-  padding: 0 12px;
+  padding: 0 1rem;
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.occurrence {
+  margin-left: auto;
+  color: #555;
 }
 
 .unselect-button, .delete-button {
@@ -228,4 +283,39 @@ async function deleteSelected() {
 .search-bar .search-button svg {
   stroke: #f55151;
 }
+
+.progress-container {
+  margin-top: auto;
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .25rem;
+  height: 25px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #cfcfcf;
+}
+
+.progress-container progress {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.progress-container progress::-webkit-progress-bar {
+  background-color: #ffffff;
+}
+
+.progress-container progress::-webkit-progress-value {
+  background-color: #51f560;
+}
+
+.progress-container span {
+  font-weight: 800;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 </style>
