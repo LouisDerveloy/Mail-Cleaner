@@ -5,6 +5,7 @@ use imap::{Connection, Session};
 use serde::Serialize;
 use tauri::ipc::Channel;
 use crate::utils::{CommandResult, FailureType};
+use std::collections::HashMap;
 
 pub struct OAuthCredentials {
     user: String,
@@ -57,7 +58,7 @@ impl MailServer {
 }
 
 pub trait EmailProvider {
-    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<SenderBulk>) -> CommandResult<Vec<String>>;
+    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Progress>) -> CommandResult<Vec<Sender>>;
     fn delete_senders(&mut self, sender_emails: Vec<String>) -> CommandResult;
 }
 
@@ -67,21 +68,16 @@ pub struct EmailAccessProvider {
 
 #[derive(Serialize, Clone)]
 pub struct Sender {
-    id: u32,
-    name: Option<String>,
-    email: String,
+    pub id: u32,
+    pub name: Option<String>,
+    pub email: String,
+    pub occurrence: u32,
 }
 
 #[derive(Serialize, Clone)]
 pub struct Progress {
     pub current: u32,
     pub total: u32,
-}
-
-#[derive(Serialize, Clone)]
-pub struct SenderBulk {
-    pub progress: Progress,
-    pub senders: Vec<Sender>,
 }
 
 impl EmailAccessProvider {
@@ -107,108 +103,64 @@ impl EmailAccessProvider {
 }
 
 impl EmailProvider for EmailAccessProvider {
-    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<SenderBulk>) -> CommandResult<Vec<String>> {
+    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Progress>) -> CommandResult<Vec<Sender>> {
 
         println!("Get inbox senders' address from query: {}", query);
 
         // Search for all the ids of emails which match the request <BODY unsubscribe> that mean the body has to contain the word unsubscribe
-        let search_result = match self.imap_session.search(query) {
-            Ok(ids) => ids,
-            Err(err) => {
-                return Err(FailureType::UnknownError(err.to_string()));
-            }
-        };
+        let search_result = self.imap_session.search(query).map_err(|e| FailureType::UnknownError(e.to_string()))?;
 
         let total_emails = search_result.len() as u32;
         println!("Found {} emails matching the request.", total_emails);
 
-        let mut emails_list: Vec<String> = Vec::with_capacity(total_emails as usize);
-        let mut senders: Vec<Sender> = Vec::new();
-        let mut seen_emails: HashSet<String> = HashSet::new();
+        let mut senders_map: HashMap<String, Sender> = HashMap::new();
 
         for (index, seq) in search_result.iter().enumerate() {
-
             // Fetch the sender of those mails
-            let result = self.imap_session.fetch(seq.to_string(), "ALL"); // TODO: We probably don't need to select ALL but maybe only HEADER or HEADER[SENDER].
+            let result = self.imap_session.fetch(seq.to_string(), "ALL"); // Try with "ENVELOPE" to get the sender name
 
-            match result {
+            if let Ok(msgs) = result {
+                for msg in msgs.iter() {
+                    if let Some(envelop) = msg.envelope() {
+                        if let Some(_senders) = &envelop.sender {
+                            for sender in _senders {
+                                // Check if mailbox and host are defined
+                                if let (Some(mailbox), Some(host)) = (sender.mailbox.as_ref(), sender.host.as_ref()) {
+                                    let email = format!(
+                                        "{}@{}",
+                                        String::from_utf8_lossy(mailbox),
+                                        String::from_utf8_lossy(host)
+                                    );
+                                    let _name = sender.name.as_ref().map(|s| String::from_utf8_lossy(s.as_ref()).to_string());
 
-                Ok(msgs) => {
-
-                    for msg in msgs.iter() {
-
-                        if let Some(envelop) = msg.envelope() {
-                            if let Some(_senders) = &envelop.sender {
-
-                                for sender in _senders {
-
-                                    // Check if mailbox and host are defined
-                                    if let (Some(mailbox), Some(host)) = (sender.mailbox.clone(), sender.host.clone()) {
-
-                                        let email = format!(
-                                            "{}@{}",
-                                            String::from_utf8(mailbox.to_vec()).expect("Failed to convert &[u8] of the mailbox to String"),
-                                            String::from_utf8(host.to_vec()).expect("Failed to convert &[u8] of the host to String")
-                                        );
-
-                                        // Check if we have already processed this email address.
-                                        // `seen_emails.insert()` returns true only if the email is new to the set.
-                                        if seen_emails.insert(email.clone()) {
-                                            emails_list.push(email.clone());
-                                            let sender_id = (emails_list.len() - 1) as u32;
-
-                                            let _name = match &sender.name {
-                                                Some(name) => Some(String::from_utf8_lossy(name.as_ref()).to_string()),
-                                                None => None,
-                                            };
-
-
-                                            senders.push(Sender {
-                                                id: sender_id,
-                                                name: _name,
-                                                email,
-                                            });
-                                            println!("{} senders", senders.len());
-
-                                            if senders.len() >= 10 {
-                                                println!("Sending {} senders", senders.len());
-                                                let bulk = SenderBulk {
-                                                    progress: Progress { current: (index + 1) as u32, total: total_emails },
-                                                    senders: senders.clone(),
-                                                };
-                                                ret_channel.send(bulk).unwrap();
-                                                senders.clear();
-                                            }
-                                        }
-                                    }
+                                    let sender_entry = senders_map.entry(email.clone()).or_insert_with(|| Sender {
+                                        id: 0, // Placeholder, will be set later
+                                        name: _name,
+                                        email,
+                                        occurrence: 0,
+                                    });
+                                    sender_entry.occurrence += 1;
                                 }
                             }
                         }
                     }
                 }
-                Err(err) => {
-                    println!("Couldn't fetch\nError: {:?}", err);
-                }
+            }
+
+            if (index + 1) % 20 == 0 || (index + 1) as u32 == total_emails {
+                let progress = Progress { current: (index + 1) as u32, total: total_emails };
+                ret_channel.send(progress).unwrap();
             }
         }
 
-        // Send the remaining senders
-        if !senders.is_empty() {
-            let bulk = SenderBulk {
-                progress: Progress { current: total_emails, total: total_emails },
-                senders: senders.to_vec(),
-            };
-            ret_channel.send(bulk).unwrap();
-        } else {
-            // Send final progress update if there are no remaining senders to ensure 100% is reached
-            let bulk = SenderBulk {
-                progress: Progress { current: total_emails, total: total_emails },
-                senders: Vec::new(),
-            };
-            ret_channel.send(bulk).unwrap();
+        let mut final_senders: Vec<Sender> = senders_map.into_values().collect();
+        final_senders.sort_by_key(|s| s.occurrence);
+        final_senders.reverse();
+        for (i, sender) in final_senders.iter_mut().enumerate() {
+            sender.id = i as u32;
         }
 
-        Ok(emails_list)
+        Ok(final_senders)
     }
 
     fn delete_senders(&mut self, sender_emails: Vec<String>) -> CommandResult {

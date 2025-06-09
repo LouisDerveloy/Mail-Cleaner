@@ -9,4 +9,5 @@ pub enum FailureType {
     FailedToLockState,
     NotConnected,
     UnknownError(String),
+    IDDidntMatch,
 }

@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::ipc::{Channel};
-use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender, SenderBulk};
+use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender, Progress};
 use crate::utils::{CommandResult, FailureType};
 use std::sync::{Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -9,7 +9,7 @@ mod email_access_provider;
 mod utils;
 
 #[tauri::command]
-async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<SenderBulk>, query: String) -> CommandResult {
+async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Progress>, query: String) -> CommandResult<Vec<Sender>> {
 
     match state.lock() {
         Err(_) => Err(FailureType::FailedToLockState),
@@ -23,8 +23,8 @@ async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_
                 Some(ref mut session) => {
                     match session.get_unique_senders_email_list(query, ret_channel) {
                         Ok(emails_list) => {
-                            _state.emails_list = Some(emails_list);
-                            Ok(())
+                            _state.emails_list = Some(emails_list.clone());
+                            Ok(emails_list)
                         },
                         Err(err) => Err(err)
                     }
@@ -66,7 +66,16 @@ async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle
     };
 
     let emails_to_delete: Vec<String> = if let Some(emails_list) = &guard.emails_list {
-        sender_ids.iter().filter_map(|&id| emails_list.get(id as usize).cloned()).collect()
+        let mut emails = Vec::new();
+        for &id in sender_ids.iter() {
+            if let Some(sender) = emails_list.get(id as usize) {
+                if sender.id != id {
+                    return Err(FailureType::IDDidntMatch);
+                }
+                emails.push(sender.email.clone());
+            }
+        }
+        emails
     } else {
         return Err(FailureType::UnknownError("Email list not available".to_string()));
     };
@@ -77,7 +86,6 @@ async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle
 
     if let Some(session) = &mut guard.email_session {
         session.delete_senders(emails_to_delete)?;
-        guard.emails_list = None; // Clear the list after deletion
     } else {
         return Err(FailureType::NotConnected);
     }
@@ -127,7 +135,7 @@ async fn password_connect(state: State<'_, Mutex<AppState>>, server: String, por
 struct AppState {
     email_session: Option<EmailAccessProvider>,
     mail_server: Option<MailServer>,
-    emails_list: Option<Vec<String>>
+    emails_list: Option<Vec<Sender>>
 }
 
 
