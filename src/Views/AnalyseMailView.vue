@@ -17,9 +17,15 @@ interface DisplaySender extends Sender {
   selected: boolean;
 }
 
+interface SenderBulk {
+  progress: { current: number, total: number };
+  senders: Sender[];
+}
+
 let senders: Ref<DisplaySender[]> = shallowRef([])
 let searching = ref(false)
 let query = ref("BODY unsubscribe")
+let progress = ref({ current: 0, total: 0 });
 
 const selectedCount = computed(() => {
   return senders.value.filter(s => s.selected).length
@@ -28,12 +34,14 @@ const selectedCount = computed(() => {
 function start_search() {
   searching.value = true
   senders.value = []
+  progress.value = { current: 0, total: 0 };
   const channel = new Channel()
 
   channel.onmessage = (response: unknown) => {
-    const _senders = response as Sender[]
-    const displaySenders: DisplaySender[] = _senders.map(s => ({ ...s, selected: false }))
+    const bulk = response as SenderBulk;
+    const displaySenders: DisplaySender[] = bulk.senders.map(s => ({ ...s, selected: false }))
     senders.value = [...senders.value, ...displaySenders]
+    progress.value = bulk.progress;
   }
 
   invoke("get_list", {"retChannel": channel, "query": query.value}).then(() => {
@@ -129,6 +137,10 @@ async function deleteSelected() {
         <span>{{ item.email }}</span>
       </div>
     </RecycleScroller>
+    <div class="progress-container" v-if="searching || progress.total > 0">
+      <progress :value="progress.current" :max="progress.total" />
+      <span>{{ progress.current }} / {{ progress.total }}</span>
+    </div>
   </section>
 </template>
 
@@ -228,4 +240,39 @@ async function deleteSelected() {
 .search-bar .search-button svg {
   stroke: #f55151;
 }
+
+.progress-container {
+  margin-top: auto;
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .25rem;
+  height: 25px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #cfcfcf;
+}
+
+.progress-container progress {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.progress-container progress::-webkit-progress-bar {
+  background-color: #ffffff;
+}
+
+.progress-container progress::-webkit-progress-value {
+  background-color: #51f560;
+}
+
+.progress-container span {
+  font-weight: 800;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 </style>

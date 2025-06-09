@@ -57,7 +57,7 @@ impl MailServer {
 }
 
 pub trait EmailProvider {
-    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Vec<Sender>>) -> CommandResult<Vec<String>>;
+    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<SenderBulk>) -> CommandResult<Vec<String>>;
     fn delete_senders(&mut self, sender_emails: Vec<String>) -> CommandResult;
 }
 
@@ -70,6 +70,18 @@ pub struct Sender {
     id: u32,
     name: Option<String>,
     email: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct Progress {
+    pub current: u32,
+    pub total: u32,
+}
+
+#[derive(Serialize, Clone)]
+pub struct SenderBulk {
+    pub progress: Progress,
+    pub senders: Vec<Sender>,
 }
 
 impl EmailAccessProvider {
@@ -95,7 +107,7 @@ impl EmailAccessProvider {
 }
 
 impl EmailProvider for EmailAccessProvider {
-    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Vec<Sender>>) -> CommandResult<Vec<String>> {
+    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<SenderBulk>) -> CommandResult<Vec<String>> {
 
         println!("Get inbox senders' address from query: {}", query);
 
@@ -107,13 +119,14 @@ impl EmailProvider for EmailAccessProvider {
             }
         };
 
-        println!("Found {} emails matching the request.", search_result.len());
+        let total_emails = search_result.len() as u32;
+        println!("Found {} emails matching the request.", total_emails);
 
-        let mut emails_list: Vec<String> = Vec::with_capacity(search_result.len());
+        let mut emails_list: Vec<String> = Vec::with_capacity(total_emails as usize);
         let mut senders: Vec<Sender> = Vec::new();
         let mut seen_emails: HashSet<String> = HashSet::new();
 
-        for seq in search_result {
+        for (index, seq) in search_result.iter().enumerate() {
 
             // Fetch the sender of those mails
             let result = self.imap_session.fetch(seq.to_string(), "ALL"); // TODO: We probably don't need to select ALL but maybe only HEADER or HEADER[SENDER].
@@ -159,7 +172,11 @@ impl EmailProvider for EmailAccessProvider {
 
                                             if senders.len() >= 10 {
                                                 println!("Sending {} senders", senders.len());
-                                                ret_channel.send(senders.to_vec()).unwrap();
+                                                let bulk = SenderBulk {
+                                                    progress: Progress { current: (index + 1) as u32, total: total_emails },
+                                                    senders: senders.clone(),
+                                                };
+                                                ret_channel.send(bulk).unwrap();
                                                 senders.clear();
                                             }
                                         }
@@ -176,8 +193,19 @@ impl EmailProvider for EmailAccessProvider {
         }
 
         // Send the remaining senders
-        if senders.len() > 0 {
-            ret_channel.send(senders.to_vec()).unwrap();
+        if !senders.is_empty() {
+            let bulk = SenderBulk {
+                progress: Progress { current: total_emails, total: total_emails },
+                senders: senders.to_vec(),
+            };
+            ret_channel.send(bulk).unwrap();
+        } else {
+            // Send final progress update if there are no remaining senders to ensure 100% is reached
+            let bulk = SenderBulk {
+                progress: Progress { current: total_emails, total: total_emails },
+                senders: Vec::new(),
+            };
+            ret_channel.send(bulk).unwrap();
         }
 
         Ok(emails_list)

@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::ipc::{Channel};
-use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender};
+use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender, SenderBulk};
 use crate::utils::{CommandResult, FailureType};
 use std::sync::{Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -9,7 +9,7 @@ mod email_access_provider;
 mod utils;
 
 #[tauri::command]
-async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Vec<Sender>>, query: String) -> CommandResult {
+async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<SenderBulk>, query: String) -> CommandResult {
 
     match state.lock() {
         Err(_) => Err(FailureType::FailedToLockState),
