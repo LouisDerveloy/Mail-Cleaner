@@ -11,10 +11,10 @@
             <TipTool :text="field.tip" />
           </label>
           <template v-if="field.type === 'text'">
-            <input v-model="searchStore[field.key]" :id="field.key" type="text" />
+            <input v-model="(searchStore[field.key] as any)" :id="field.key" type="text" />
           </template>
           <template v-else-if="field.type === 'checkbox'">
-            <input v-model="searchStore[field.key]" :id="field.key" type="checkbox" />
+            <input v-model="(searchStore[field.key] as any)" :id="field.key" type="checkbox" />
           </template>
         </div>
         <button class="search-btn" type="submit">Search</button>
@@ -23,14 +23,22 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import { useSearchStore } from '../stores/search';
 import TipTool from './TipTool.vue';
+const props = defineProps<{ onSearch: () => void }>();
 
 const searchStore = useSearchStore();
 
-const fields = [
+interface Field {
+  key: keyof typeof searchStore;
+  label: string;
+  type: 'text' | 'checkbox';
+  tip: string;
+}
+
+const fields: Field[] = [
   { key: 'text', label: 'Text', type: 'text', tip: 'Search for any text in the email.' },
   { key: 'body', label: 'Body', type: 'text', tip: 'Search within the email body.' },
   { key: 'before', label: 'Before', type: 'text', tip: 'Find emails before a specific date (YYYY-MM-DD).' },
@@ -45,7 +53,8 @@ const fields = [
 ];
 
 function onSearch() {
-  // To be implemented later
+	searchStore.advanceSearch = false
+  props.onSearch()
 }
 
 function closeModal() {

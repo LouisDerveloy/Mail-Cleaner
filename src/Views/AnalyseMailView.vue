@@ -49,7 +49,29 @@ function start_search() {
     progress.value = response as Progress;
   }
 
-  invoke<Sender[]>("get_list", {"retChannel": channel, "query": searchStore.text }).then((result) => {
+  // Gather all searchStore state into a Search object
+  const search: Record<string, any> = {
+    text: searchStore.text || undefined,
+    body: searchStore.body || undefined,
+    before: searchStore.before || undefined,
+    cc: searchStore.cc || undefined,
+    from: searchStore.from || undefined,
+    new_: searchStore.new_,
+    since: searchStore.since || undefined,
+    subject: searchStore.subject || undefined,
+    to: searchStore.to || undefined,
+    unseen: searchStore.unseen,
+    seen: searchStore.seen,
+  };
+
+  // Remove empty string fields (convert to undefined)
+  Object.keys(search).forEach(key => {
+    if (typeof search[key] === 'string' && search[key].trim() === '') {
+      search[key] = undefined;
+    }
+  });
+
+  invoke<Sender[]>("get_list", { retChannel: channel, query: search }).then((result) => {
     const displaySenders: DisplaySender[] = result.map(s => ({ ...s, selected: false }))
     senders.value = displaySenders;
     isProcessing.value = false
@@ -148,7 +170,7 @@ function toggleAdvanceSearch() {
           </svg>
         </button>
       </div>
-      <button @click="toggleAdvanceSearch">Advance Search</button>
+      <button @click="toggleAdvanceSearch" :disabled="isProcessing">Advance Search</button>
     </div>
       <RouterLink to="user/connexion">Connect</RouterLink>
       <button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</button>
@@ -190,7 +212,7 @@ function toggleAdvanceSearch() {
       <span>{{ progress.current }} / {{ progress.total }}</span>
     </div>
   </section>
-  <AdvanceSearch />
+  <AdvanceSearch :onSearch="start_search" />
 </template>
 
 <style scoped>
