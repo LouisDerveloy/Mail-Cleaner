@@ -8,6 +8,7 @@ import { RecycleScroller } from 'vue-virtual-scroller'
 import { handleError } from "../lib/error";
 import noResultsImage from "/src/assets/images/no-results.png";
 import searchingImage from "/src/assets/images/searching.png";
+import { useSearchStore } from "../stores/search.ts";
 
 interface Sender {
   id: number;
@@ -25,10 +26,11 @@ interface Progress {
   total: number
 };
 
+const searchStore = useSearchStore()
+
 let senders: Ref<DisplaySender[]> = shallowRef([])
 let isProcessing = ref(false)
 let searching = ref(false)
-let query = ref("BODY unsubscribe")
 let progress = ref({ current: 0, total: 0 });
 
 const selectedCount = computed(() => {
@@ -46,7 +48,7 @@ function start_search() {
     progress.value = response as Progress;
   }
 
-  invoke<Sender[]>("get_list", {"retChannel": channel, "query": query.value}).then((result) => {
+  invoke<Sender[]>("get_list", {"retChannel": channel, "query": searchStore.text }).then((result) => {
     const displaySenders: DisplaySender[] = result.map(s => ({ ...s, selected: false }))
     senders.value = displaySenders;
     isProcessing.value = false
@@ -126,7 +128,7 @@ async function deleteSelected() {
   <section class="analyse-view">
     <section class="controls">
       <div class="search-bar">
-        <input type="text" name="query" id="query" v-model="query" placeholder="Search..." @keyup.enter="start_search" :disabled="isProcessing">
+        <input type="text" name="query" id="query" v-model="searchStore.text" placeholder="Search..." @keyup.enter="start_search" :disabled="isProcessing">
         <button @click="start_search" :disabled="isProcessing" class="search-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
