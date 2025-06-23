@@ -123,6 +123,12 @@ async function deleteSelected() {
   }
 }
 
+function clearList() {
+  // No need to clear in the backend, it will be cleared when the user starts a new search.
+  // We just need to clear the UI.
+  senders.value = [];
+}
+
 </script>
 <template>
   <section class="analyse-view">
@@ -137,6 +143,7 @@ async function deleteSelected() {
         </button>
       </div>
       <RouterLink to="user/connexion">Connect</RouterLink>
+      <button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</button>
       <button @click="selectAll">Select All</button>
       <button @click="unselectAll">Unselect All</button>
       <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
