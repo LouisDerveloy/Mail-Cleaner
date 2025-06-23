@@ -9,6 +9,7 @@ import { handleError } from "../lib/error";
 import noResultsImage from "/src/assets/images/no-results.png";
 import searchingImage from "/src/assets/images/searching.png";
 import { useSearchStore } from "../stores/search.ts";
+import AdvanceSearch from "../Components/advanceSearch.vue"
 
 interface Sender {
   id: number;
@@ -129,11 +130,16 @@ function clearList() {
   senders.value = [];
 }
 
+function toggleAdvanceSearch() {
+  searchStore.advanceSearch = !searchStore.advanceSearch
+}
+
 </script>
 <template>
   <section class="analyse-view">
     <section class="controls">
-      <div class="search-bar">
+      <div class="search-container">
+        <div class="search-bar">
         <input type="text" name="query" id="query" v-model="searchStore.text" placeholder="Search..." @keyup.enter="start_search" :disabled="isProcessing">
         <button @click="start_search" :disabled="isProcessing" class="search-button">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -142,6 +148,8 @@ function clearList() {
           </svg>
         </button>
       </div>
+      <button @click="toggleAdvanceSearch">Advance Search</button>
+    </div>
       <RouterLink to="user/connexion">Connect</RouterLink>
       <button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</button>
       <button @click="selectAll">Select All</button>
@@ -182,6 +190,7 @@ function clearList() {
       <span>{{ progress.current }} / {{ progress.total }}</span>
     </div>
   </section>
+  <AdvanceSearch />
 </template>
 
 <style scoped>
@@ -275,7 +284,6 @@ function clearList() {
 }
 
 .search-bar {
-  margin-right: auto;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -284,6 +292,13 @@ function clearList() {
   padding-left: 8px;
   max-width: 600px;
   border: 2px solid #cfcfcf;
+}
+
+.search-container {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  margin-right: auto;
 }
 
 .search-bar input {

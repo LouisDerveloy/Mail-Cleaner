@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useSearchStore = defineStore('search', () => {
+    const advanceSearch = ref(false)
+
     const text = ref('')
     const body = ref('')
     const before = ref('')
@@ -15,6 +17,7 @@ export const useSearchStore = defineStore('search', () => {
     const seen = ref(false)
 
     return {
+        advanceSearch,
         text,
         body,
         before,
