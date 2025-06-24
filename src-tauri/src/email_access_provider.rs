@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::fmt::{format, Debug, Display};
 use std::collections::HashSet;
 use std::vec;
@@ -125,10 +126,18 @@ impl EmailProvider for EmailAccessProvider {
 
         let mut senders_map: HashMap<String, Sender> = HashMap::new();
 
-        for (index, seq) in search_result.iter().enumerate() {
+        for (index, chunk) in search_result.into_iter().collect::<Vec<_>>().chunks(100).enumerate() {
+
+            // Batch fetch
+            let sequence_set = chunk
+                .iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+
             // Fetch the sender of those mails
             let tmp_fetch_t = Instant::now();
-            let result = self.imap_session.fetch(seq.to_string(), "ENVELOPE"); // Try with "ENVELOPE" to get the sender name
+            let result = self.imap_session.fetch(sequence_set, "ENVELOPE"); // Try with "ENVELOPE" to get the sender name
             fetch_t.push(tmp_fetch_t.elapsed());
 
             let tmp_treatment_t = Instant::now();
@@ -162,10 +171,9 @@ impl EmailProvider for EmailAccessProvider {
             }
             treatment_t.push(tmp_treatment_t.elapsed());
 
-            if (index + 1) % 20 == 0 || (index + 1) as u32 == total_emails {
-                let progress = Progress { current: (index + 1) as u32, total: total_emails };
-                ret_channel.send(progress).unwrap();
-            }
+
+            let progress = Progress { current: min((index as u32)*100, total_emails), total: total_emails };
+            ret_channel.send(progress).unwrap();
         }
 
         let serialize_t = Instant::now();
