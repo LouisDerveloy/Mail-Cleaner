@@ -120,7 +120,7 @@ async function deleteSelected() {
     return;
   }
 
-  const confirmed = await confirm(`Are you sure you want to delete all emails coming from ${selectedCount.value} senders?`, {
+  const confirmed = await confirm(`Are you sure you want to delete all emails coming from ${selectedCount.value} senders? Please be aware that all the emails from each sender selected will be deleted not only the ones matching the search query.`, {
     title: "Confirm Deletion",
     kind: "warning",
   });
