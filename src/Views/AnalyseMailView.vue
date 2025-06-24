@@ -209,7 +209,8 @@ function toggleAdvanceSearch() {
     </section>
     <div class="progress-container" v-if="isProcessing || progress.total > 0">
       <progress :value="progress.current" :max="progress.total" />
-      <span>{{ progress.current }} / {{ progress.total }}</span>
+      <span v-if="progress.current === 0 && isProcessing">Loading...</span>
+      <span v-else>{{ progress.current }} / {{ progress.total }}</span>
     </div>
   </section>
   <AdvanceSearch :onSearch="start_search" />
