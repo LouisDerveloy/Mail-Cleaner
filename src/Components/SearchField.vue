@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import TipTool from '../Components/TipTool.vue';
 
 const props = defineProps<{
   modelValue: string | boolean;
@@ -65,29 +66,28 @@ function clearInput() {
       {{ label }}
       <TipTool :text="tip" />
     </label>
-    <div class="input">
-      <template v-if="typeof modelValue === 'boolean'">
-        <input v-model="boolValue" type="checkbox" class="checkbox-input" />
-      </template>
-      <template v-else-if="isDate">
-        <input v-model="dateValue" type="date" />
-        <span v-if="modelValue" @click="clearInput" class="clear-btn">X</span>
-      </template>
-      <template v-else>
-        <input v-model="textValue" type="text" :placeholder="label" />
-        <span v-if="modelValue" @click="clearInput" class="clear-btn">X</span>
-      </template>
+
+    <div v-if="typeof modelValue === 'boolean'" class="input bool">
+      <input v-model="boolValue" type="checkbox" class="checkbox-input" />
+    </div>
+    <div v-else-if="isDate" class="input">
+      <input v-model="dateValue" type="date" />
+      <span v-if="modelValue" @click="clearInput" class="clear-btn">X</span>
+    </div>
+    <div v-else class="input">
+      <input v-model="textValue" type="text" :placeholder="label" />
+      <span v-if="modelValue" @click="clearInput" class="clear-btn">X</span>
     </div>
   </div>
 </template>
 
 <style scoped>
 .form-group {
-	width: 100%;
-	max-width: 400px;
-    margin-bottom: 1.5rem;
-    display: flex;
-    flex-direction: column;
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
 label {
@@ -130,7 +130,7 @@ label {
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
-    cursor: pointer;
-    filter: invert(0.5);
+  cursor: pointer;
+  filter: invert(0.5);
 }
-</style> 
+</style>

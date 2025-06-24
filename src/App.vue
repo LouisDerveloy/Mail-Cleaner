@@ -44,12 +44,13 @@ listen("open-login-page", () => {
 
 .content {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
 }
 
 .app-main {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
+  overflow-y: hidden;
   flex-direction: row;
   justify-content: stretch;
 }

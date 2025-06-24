@@ -10,6 +10,7 @@ import noResultsImage from "/src/assets/images/no-results.png";
 import searchingImage from "/src/assets/images/searching.png";
 import { useSearchStore } from "../stores/search.ts";
 import AdvanceSearch from "../Components/advanceSearch.vue"
+import SearchBar from "../Components/SearchBar.vue";
 
 interface Sender {
   id: number;
@@ -161,17 +162,9 @@ function toggleAdvanceSearch() {
   <section class="analyse-view">
     <section class="controls">
       <div class="search-container">
-        <div class="search-bar">
-        <input type="text" name="query" id="query" v-model="searchStore.text" placeholder="Search..." @keyup.enter="start_search" :disabled="isProcessing">
-        <button @click="start_search" :disabled="isProcessing" class="search-button">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-        </button>
+        <SearchBar v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
+        <button @click="toggleAdvanceSearch" :disabled="isProcessing">Advance Search</button>
       </div>
-      <button @click="toggleAdvanceSearch" :disabled="isProcessing">Advance Search</button>
-    </div>
       <RouterLink to="user/connexion">Connect</RouterLink>
       <button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</button>
       <button @click="selectAll">Select All</button>
@@ -201,6 +194,7 @@ function toggleAdvanceSearch() {
     <div class="info" v-else-if="!searching">
       <img :src="noResultsImage" alt="No results" class="cat-image">
       <span>I can't find any mails meow. Maybe you should start a search.</span>
+      <SearchBar v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
     </div>
     <div class="info" v-else>
       <img :src="searchingImage" alt="Searching..." class="cat-image">
@@ -306,59 +300,13 @@ function toggleAdvanceSearch() {
   background-color: #d9d9d9;
 }
 
-.search-bar {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  background-color: #dfdfdf;
-  border-radius: 25px;
-  padding-left: 8px;
-  max-width: 600px;
-  border: 2px solid #cfcfcf;
-}
-
 .search-container {
   display: flex;
   flex-direction: row;
   gap: 1rem;
   margin-right: auto;
-}
-
-.search-bar input {
-  flex-grow: 1;
-  border: none;
-  background: transparent;
-  outline: none;
-  padding: 0 .5rem;
-  width: 100%;
-}
-
-.search-bar input::placeholder {
-  color: #a0a0a0;
-}
-
-.search-bar .search-button {
-  border: none;
-  background: white;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  display: flex;
-  justify-content: center;
   align-items: center;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-}
-
-.search-bar .search-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.search-bar .search-button svg {
-  stroke: #f55151;
+  flex-grow: 1;
 }
 
 .progress-container {

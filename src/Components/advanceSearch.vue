@@ -11,10 +11,10 @@
         <SearchField v-model="searchStore.before" label="Before" tip="Find emails before a specific date (dd-Mon-yyyy)." :is-date="true" />
         <SearchField v-model="searchStore.cc" label="CC" tip="Search by CC recipients." />
         <SearchField v-model="searchStore.from" label="From" tip="Search by sender." />
-        <SearchField v-model="searchStore.new_" label="New" tip="Only show new emails." />
         <SearchField v-model="searchStore.since" label="Since" tip="Find emails since a specific date (dd-Mon-yyyy)." :is-date="true" />
         <SearchField v-model="searchStore.subject" label="Subject" tip="Search by subject line." />
         <SearchField v-model="searchStore.to" label="To" tip="Search by recipient." />
+        <SearchField v-model="searchStore.new_" label="New" tip="Only show new emails." />
         <SearchField v-model="searchStore.unseen" label="Unseen" tip="Only show unseen emails." />
         <SearchField v-model="searchStore.seen" label="Seen" tip="Only show seen emails." />
         <button class="search-btn" type="submit">Search</button>
@@ -55,8 +55,9 @@ function closeModal() {
 }
 .modal-content {
   background: #f3f3f3;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  overflow-x: hidden;
   max-width: 900px;
   max-height: 90vh;
   overflow-y: auto;
@@ -111,8 +112,6 @@ function closeModal() {
   position: sticky;
   bottom: 0;
 
-  box-shadow: -1px -1px 64px -12px rgba(10,10,10,0.57);
-  -webkit-box-shadow: -1px -1px 64px -12px rgba(10,10,10,0.57);
-  -moz-box-shadow: -1px -1px 64px -12px rgba(10,10,10,0.57);
+  box-shadow: 0px 0px 50px -15px black;
 }
 </style>
