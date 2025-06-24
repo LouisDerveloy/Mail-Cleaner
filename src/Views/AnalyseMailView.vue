@@ -236,7 +236,9 @@ function toggleAdvanceSearch() {
   display: flex;
   flex-direction: column;
   gap: .25rem;
-  height: 100%;
+  height: 50%;
+
+  flex-grow: 1;
 }
 
 .table .info {

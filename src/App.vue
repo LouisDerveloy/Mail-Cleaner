@@ -25,34 +25,17 @@ listen("open-login-page", () => {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-
-.app-main aside {
-  padding: 1rem;
-  background: grey;
-
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-}
-
-.app-main aside RouterLink {
-  font-size: 20px;
-  text-decoration: none;
-}
-
-.content {
-  width: 100%;
-  height: 100dvh;
-}
-
 .app-main {
   display: flex;
   height: 100dvh;
   overflow-y: hidden;
   flex-direction: row;
   justify-content: stretch;
+}
+
+.content {
+  width: 100%;
+  height: 100%;
 }
 
 button, a {
