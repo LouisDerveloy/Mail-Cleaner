@@ -172,7 +172,7 @@ impl EmailProvider for EmailAccessProvider {
             treatment_t.push(tmp_treatment_t.elapsed());
 
 
-            let progress = Progress { current: min((index as u32 + 1)*100, total_emails), total: total_emails };
+            let progress = Progress { current: min((index as u32)*100, total_emails), total: total_emails };
             ret_channel.send(progress).unwrap();
         }
 
