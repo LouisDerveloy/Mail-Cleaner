@@ -1,7 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::ipc::{Channel};
 use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender, Progress};
-use crate::utils::{CommandResult, FailureType};
+use crate::utils::{CommandResult, FailureType, constuct_query, Search};
 use std::sync::{Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -9,7 +9,7 @@ mod email_access_provider;
 mod utils;
 
 #[tauri::command]
-async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Progress>, query: String) -> CommandResult<Vec<Sender>> {
+async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Progress>, query: Search) -> CommandResult<Vec<Sender>> {
 
     match state.lock() {
         Err(_) => Err(FailureType::FailedToLockState),
@@ -21,6 +21,10 @@ async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_
                     Err(FailureType::NotConnected)
                 }
                 Some(ref mut session) => {
+
+                    // Create query
+                    let query = constuct_query(query);
+
                     match session.get_unique_senders_email_list(query, ret_channel) {
                         Ok(emails_list) => {
                             _state.emails_list = Some(emails_list.clone());
@@ -59,7 +63,7 @@ async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Comma
 
 
 #[tauri::command]
-async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, sender_ids: Vec<u32>) -> CommandResult {
+async fn delete_senders(state: State<'_, Mutex<AppState>>, sender_ids: Vec<u32>, ret_channel: Channel<Progress>) -> CommandResult {
     let mut guard = match state.lock() {
         Ok(guard) => guard,
         Err(_) => return Err(FailureType::FailedToLockState)
@@ -85,7 +89,7 @@ async fn delete_senders(state: State<'_, Mutex<AppState>>, app_handle: AppHandle
     }
 
     if let Some(session) = &mut guard.email_session {
-        session.delete_senders(emails_to_delete)?;
+        session.delete_senders(emails_to_delete, ret_channel)?;
     } else {
         return Err(FailureType::NotConnected);
     }

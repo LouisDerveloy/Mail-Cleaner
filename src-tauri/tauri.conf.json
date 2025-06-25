@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "com.mailcleaner.app",
   "mainBinaryName": "Mail Cleaner",
   "productName": "Mail Cleaner",
@@ -17,8 +17,8 @@
         "title": "Mail Cleaner",
         "width": 1700,
         "height": 900,
-        "minWidth": 520,
-        "minHeight": 500,
+        "minWidth": 930,
+        "minHeight": 780,
         "acceptFirstMouse": false,
         "center": true,
         "dragDropEnabled": false,

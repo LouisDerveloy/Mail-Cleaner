@@ -6,6 +6,11 @@ import type { Ref } from "vue";
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import { RecycleScroller } from 'vue-virtual-scroller'
 import { handleError } from "../lib/error";
+import noResultsImage from "/src/assets/images/no-results.png";
+import searchingImage from "/src/assets/images/searching.png";
+import { useSearchStore } from "../stores/search.ts";
+import AdvanceSearch from "../Components/advanceSearch.vue"
+import SearchBar from "../Components/SearchBar.vue";
 
 interface Sender {
   id: number;
@@ -23,9 +28,11 @@ interface Progress {
   total: number
 };
 
+const searchStore = useSearchStore()
+
 let senders: Ref<DisplaySender[]> = shallowRef([])
+let isProcessing = ref(false)
 let searching = ref(false)
-let query = ref("BODY unsubscribe")
 let progress = ref({ current: 0, total: 0 });
 
 const selectedCount = computed(() => {
@@ -33,6 +40,7 @@ const selectedCount = computed(() => {
 })
 
 function start_search() {
+  isProcessing.value = true
   searching.value = true
   senders.value = []
   progress.value = { current: 0, total: 0 };
@@ -42,13 +50,37 @@ function start_search() {
     progress.value = response as Progress;
   }
 
-  invoke<Sender[]>("get_list", {"retChannel": channel, "query": query.value}).then((result) => {
+  // Gather all searchStore state into a Search object
+  const search: Record<string, any> = {
+    text: searchStore.text || undefined,
+    body: searchStore.body || undefined,
+    before: searchStore.before || undefined,
+    cc: searchStore.cc || undefined,
+    from: searchStore.from || undefined,
+    new_: searchStore.new_,
+    since: searchStore.since || undefined,
+    subject: searchStore.subject || undefined,
+    to: searchStore.to || undefined,
+    unseen: searchStore.unseen,
+    seen: searchStore.seen,
+  };
+
+  // Remove empty string fields (convert to undefined)
+  Object.keys(search).forEach(key => {
+    if (typeof search[key] === 'string' && search[key].trim() === '') {
+      search[key] = undefined;
+    }
+  });
+
+  invoke<Sender[]>("get_list", { retChannel: channel, query: search }).then((result) => {
     const displaySenders: DisplaySender[] = result.map(s => ({ ...s, selected: false }))
     senders.value = displaySenders;
+    isProcessing.value = false
     searching.value = false
   }).catch(async (err) => {
     await handleError(err);
-    searching.value = false;
+    isProcessing.value = false;
+    searching.value = false
   });
 }
 
@@ -88,7 +120,7 @@ async function deleteSelected() {
     return;
   }
 
-  const confirmed = await confirm(`Are you sure you want to delete all emails coming from ${selectedCount.value} senders?`, {
+  const confirmed = await confirm(`Are you sure you want to delete all emails coming from ${selectedCount.value} senders? Please be aware that all the emails from each sender selected will be deleted not only the ones matching the search query.`, {
     title: "Confirm Deletion",
     kind: "warning",
   });
@@ -96,29 +128,45 @@ async function deleteSelected() {
   if (confirmed) {
     const idsToDelete = senders.value.filter(s => s.selected).map(s => s.id);
     
+    isProcessing.value = true;
+    progress.value = { current: 0, total: 0 };
+    const channel = new Channel();
+
+    channel.onmessage = (response: unknown) => {
+      progress.value = response as Progress;
+    };
+
     try {
-      await invoke("delete_senders", { senderIds: idsToDelete });
+      await invoke("delete_senders", { senderIds: idsToDelete, retChannel: channel });
       senders.value = senders.value.filter(s => !s.selected);
     } catch (err) {
       await handleError(err);
+    } finally {
+      isProcessing.value = false;
     }
   }
+}
+
+function clearList() {
+  // No need to clear in the backend, it will be cleared when the user starts a new search.
+  // We just need to clear the UI.
+  senders.value = [];
+}
+
+function toggleAdvanceSearch() {
+  searchStore.advanceSearch = !searchStore.advanceSearch
 }
 
 </script>
 <template>
   <section class="analyse-view">
     <section class="controls">
-      <div class="search-bar">
-        <input type="text" name="query" id="query" v-model="query" placeholder="Search..." @keyup.enter="start_search" :disabled="searching">
-        <button @click="start_search" :disabled="searching" class="search-button">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-        </button>
+      <div class="search-container">
+        <SearchBar v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
+        <button @click="toggleAdvanceSearch" :disabled="isProcessing">Advance Search</button>
       </div>
       <RouterLink to="user/connexion">Connect</RouterLink>
+      <button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</button>
       <button @click="selectAll">Select All</button>
       <button @click="unselectAll">Unselect All</button>
       <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
@@ -143,15 +191,23 @@ async function deleteSelected() {
         <span class="occurrence">{{ item.occurrence }}</span>
       </div>
     </RecycleScroller>
-    <div class="no-results" v-else>
-      <span>You have no emails to delete. Please search for emails to delete.</span>
+    <div class="info" v-else-if="!searching">
+      <img :src="noResultsImage" alt="No results" class="cat-image">
+      <span>I can't find any mails meow. Maybe you should start a search.</span>
+      <SearchBar v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
+    </div>
+    <div class="info" v-else>
+      <img :src="searchingImage" alt="Searching..." class="cat-image">
+      <span>I'm searching for your emails... I hope i will get some treats for that.</span>
     </div>
     </section>
-    <div class="progress-container" v-if="searching || progress.total > 0">
+    <div class="progress-container" v-if="isProcessing || progress.total > 0">
       <progress :value="progress.current" :max="progress.total" />
-      <span>{{ progress.current }} / {{ progress.total }}</span>
+      <span v-if="progress.current === 0 && isProcessing">Loading...</span>
+      <span v-else>{{ progress.current }} / {{ progress.total }}</span>
     </div>
   </section>
+  <AdvanceSearch :onSearch="start_search" />
 </template>
 
 <style scoped>
@@ -180,18 +236,29 @@ async function deleteSelected() {
   display: flex;
   flex-direction: column;
   gap: .25rem;
-  height: 100%;
+  height: 50%;
+
+  flex-grow: 1;
 }
 
-.table .no-results {
+.table .info {
   height: 100%;
   width: 100%;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
 }
 
-.table .no-results span {
+.table .info img {
+  width: 300px;
+  height: 300px;
+}
+
+.table .info span {
   display: block;
+  font-size: 2rem;
 }
 
 .table .header {
@@ -235,53 +302,13 @@ async function deleteSelected() {
   background-color: #d9d9d9;
 }
 
-.search-bar {
-  margin-right: auto;
+.search-container {
   display: flex;
   flex-direction: row;
+  gap: 1rem;
+  margin-right: auto;
   align-items: center;
-  background-color: #dfdfdf;
-  border-radius: 25px;
-  padding-left: 8px;
-  max-width: 600px;
-  border: 2px solid #cfcfcf;
-}
-
-.search-bar input {
   flex-grow: 1;
-  border: none;
-  background: transparent;
-  outline: none;
-  padding: 0 .5rem;
-  width: 100%;
-}
-
-.search-bar input::placeholder {
-  color: #a0a0a0;
-}
-
-.search-bar .search-button {
-  border: none;
-  background: white;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  padding: 0;
-  margin: 0;
-}
-
-.search-bar .search-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-.search-bar .search-button svg {
-  stroke: #f55151;
 }
 
 .progress-container {
