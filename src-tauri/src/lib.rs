@@ -1,12 +1,14 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::ipc::{Channel};
-use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender, Progress};
-use crate::utils::{CommandResult, FailureType, constuct_query, Search};
 use std::sync::{Mutex, MutexGuard};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod email_access_provider;
+use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender, Progress};
 mod utils;
+use crate::utils::{CommandResult, FailureType, constuct_query, Search};
+
+mod oauth_handling;
 
 #[tauri::command]
 async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Progress>, query: Search) -> CommandResult<Vec<Sender>> {
@@ -135,6 +137,16 @@ async fn password_connect(state: State<'_, Mutex<AppState>>, server: String, por
     Ok(())
 }
 
+#[tauri::command]
+async fn gmail_oauth_request() -> CommandResult {
+
+    //TODO: Invok this command and test the behavior.
+
+    let token = oauth_handling::get_token().await;
+    println!("Token: {}", token);
+    Ok(())
+}
+
 #[derive(Default)]
 struct AppState {
     email_session: Option<EmailAccessProvider>,
@@ -152,7 +164,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_list, test, token_connect, delete_senders, password_connect])
+        .invoke_handler(tauri::generate_handler![get_list, test, token_connect, delete_senders, password_connect, gmail_oauth_request])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

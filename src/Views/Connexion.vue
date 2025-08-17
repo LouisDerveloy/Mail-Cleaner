@@ -3,6 +3,9 @@ import {ref} from "vue";
 import {invoke} from "@tauri-apps/api/core";
 import {useRouter} from "vue-router";
 import { handleError } from "../lib/error";
+import ThirdPartyConnexionButton from "../Components/ThirdPartyConnexionButton.vue";
+import GmailIco from "../assets/images/gmail.svg";
+import { isFunctionTypeNode } from "typescript";
 
 const router = useRouter();
 
@@ -38,6 +41,13 @@ function PasswordConnect() {
   }).catch(handleError)
 }
 
+function TestThirdPartyConnexionButton() {
+  console.log("TestThirdPartyConnexionButton");
+  invoke("gmail_oauth_request").then(value => {
+    console.log("End gmail_oauth_request. Value: ", value);
+  })
+}
+
 </script>
 
 <template>
@@ -46,6 +56,7 @@ function PasswordConnect() {
     <div class="connection-type-selector">
       <button @click="connectionType = 'password'" :class="{ active: connectionType === 'password' }">Login/Password Connection</button>
       <button @click="connectionType = 'token'" :class="{ active: connectionType === 'token' }">Token Based Connection</button>
+      <ThirdPartyConnexionButton :ico="GmailIco" label="Gmail" @click="TestThirdPartyConnexionButton" />
     </div>
 
     <h1>Connection Form</h1>
