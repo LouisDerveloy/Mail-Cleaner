@@ -15,10 +15,14 @@ use std::net;
 use std::convert::Infallible;
 use tokio::sync::{ oneshot, Mutex };
 use std::sync::{Arc};
-use oauth2::{AuthorizationCode, TokenResponse};
+use oauth2::{AuthorizationCode, RefreshToken, TokenResponse};
 use tokio::time::{timeout, Duration};
 
 use reqwest;
+
+use serde::de::IntoDeserializer;
+
+use crate::utils::{CommandResult, FailureType};
 
 // Struct to represent client_secret.json
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,6 +36,16 @@ struct AuthCallback {
     state: Option<String>,
 }
 
+#[derive(Deserialize, Debug)]
+struct GoogleUserInfo {
+    sub: String,
+    email: String,
+    email_verified: Option<bool>,
+    name: Option<String>,
+    picture: Option<String>,
+}
+
+
 fn parse_client_secret_json<P: AsRef<Path>>(file_uri: P) -> serde_json::Result<Value> {
 
     let json = read_to_string(file_uri).expect("Couldn't read the file");
@@ -41,12 +55,12 @@ fn parse_client_secret_json<P: AsRef<Path>>(file_uri: P) -> serde_json::Result<V
     serde_json::from_str::<Value>(&json.trim())
 }
 
-pub async fn get_token() -> String {
+pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)> { // (secret_token, Option<refresh_token>, email)
     let client_secret_path = String::from("client_secret.json");
 
     if !(fs::exists(client_secret_path.clone()).expect("Coudn't verify the existence of the credentials.")) {
         println!("Couldn't find the credentials at {}", client_secret_path);
-        "no token".into()
+        Err(FailureType::UnknownError("No client credentials".into()))
     } else {
         let client_secret = parse_client_secret_json(client_secret_path).expect("An error occured. While parsing the client_secret");
 
@@ -108,7 +122,9 @@ pub async fn get_token() -> String {
         let (auth_url, csrf_token) = client
             .authorize_url(oauth2::CsrfToken::new_random)
             // Set the desired scopes.
-            .add_scope(oauth2::Scope::new("https://mail.google.com".to_string()))
+            .add_scope(oauth2::Scope::new("openid".into()))// Scope to get the openid info of the authenticated user
+            .add_scope(oauth2::Scope::new("https://www.googleapis.com/auth/userinfo.email".into())) // Scope to include the email of the account used to sign in
+            .add_scope(oauth2::Scope::new("https://mail.google.com".into()))
             // Set the PKCE code challenge.
             .set_pkce_challenge(pkce_challenge)
             .url();
@@ -165,9 +181,26 @@ pub async fn get_token() -> String {
             }
         };
 
-        println!("Token: {}", final_tokens.access_token().secret());
+        let access_token = final_tokens.access_token().secret().to_string();
 
-        final_tokens.access_token().secret().to_string()
+        let userinfo: GoogleUserInfo = reqwest::Client::new()
+            // Endpoint recommandé OIDC
+            .get("https://openidconnect.googleapis.com/v1/userinfo")
+            .bearer_auth(access_token.as_str())
+            .send().await
+            .expect("Couldn't retrieve user openid info.")
+            .json::<GoogleUserInfo>().await
+            .expect("Couldn't deserialize user info");
+
+
+        println!("Token: {}", final_tokens.access_token().secret());
+        println!("Google User's info : {:?}", userinfo);
+
+        Ok((
+            access_token,
+            final_tokens.refresh_token().and_then(|refresh_token: &RefreshToken| Some(refresh_token.clone())),
+            userinfo.email,
+        ))
     }
 }
 

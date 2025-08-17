@@ -1,7 +1,5 @@
 use std::cmp::min;
 use std::fmt::{format, Debug, Display};
-use std::collections::HashSet;
-use std::vec;
 use imap;
 use imap::{Connection, Session};
 use serde::Serialize;

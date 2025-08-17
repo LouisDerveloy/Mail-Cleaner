@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use tauri::ipc::{Channel};
 use std::sync::{Mutex, MutexGuard};
+use oauth2::RefreshToken;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod email_access_provider;
@@ -138,20 +139,26 @@ async fn password_connect(state: State<'_, Mutex<AppState>>, server: String, por
 }
 
 #[tauri::command]
-async fn gmail_oauth_request() -> CommandResult {
+async fn gmail_oauth_request(state: State<'_, Mutex<AppState>>) -> CommandResult {
 
-    //TODO: Invok this command and test the behavior.
+    let (secret_token, refresh_token, email) = oauth_handling::get_token().await?;
 
-    let token = oauth_handling::get_token().await;
-    println!("Token: {}", token);
-    Ok(())
+    match state.lock() {
+        Ok(mut _state) => {
+            _state.refresh_token = refresh_token;
+        }
+        Err(_) => return Err(FailureType::FailedToLockState)
+    }
+
+    token_connect(state, "imap.gmail.com".into(), 993, email, secret_token).await
 }
 
 #[derive(Default)]
 struct AppState {
     email_session: Option<EmailAccessProvider>,
     mail_server: Option<MailServer>,
-    emails_list: Option<Vec<Sender>>
+    emails_list: Option<Vec<Sender>>,
+    refresh_token: Option<RefreshToken>
 }
 
 

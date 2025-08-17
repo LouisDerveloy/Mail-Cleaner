@@ -44,7 +44,8 @@ function PasswordConnect() {
 function TestThirdPartyConnexionButton() {
   console.log("TestThirdPartyConnexionButton");
   invoke("gmail_oauth_request").then(value => {
-    console.log("End gmail_oauth_request. Value: ", value);
+    console.log("Connect with google Resulgt: ", value);
+    router.push("/")
   })
 }
 
