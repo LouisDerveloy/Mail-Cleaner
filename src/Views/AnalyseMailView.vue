@@ -11,6 +11,12 @@ import searchingImage from "/src/assets/images/searching.png";
 import { useSearchStore } from "../stores/search.ts";
 import AdvanceSearch from "../Components/advanceSearch.vue"
 import SearchBar from "../Components/SearchBar.vue";
+import Button from "../Components/Button.vue";
+import {useRouter} from "vue-router";
+import gsap from "gsap";
+import {onMounted, onBeforeUnmount} from "vue";
+
+const router = useRouter();
 
 interface Sender {
   id: number;
@@ -158,29 +164,46 @@ function toggleAdvanceSearch() {
   searchStore.advanceSearch = !searchStore.advanceSearch
 }
 
+let ctx: gsap.Context | null = null
+onMounted(() => {
+  ctx = gsap.context(() => {
+    gsap.fromTo('.fade-in', {
+      opacity: 0,
+      y: "-50",
+    }, {
+      opacity: 1,
+      y: 0,
+      duration: .8,
+      stagger: .2,
+      ease: "bounce.out"
+    })
+  });
+});
+onBeforeUnmount(() => ctx?.revert())
+
 </script>
 <template>
   <section class="analyse-view">
-    <section class="controls">
+    <section class="controls fade-in">
       <div class="search-container">
         <SearchBar v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
-        <button @click="toggleAdvanceSearch" :disabled="isProcessing">Advance Search</button>
+        <Button @click="toggleAdvanceSearch" :disabled="isProcessing">Advance Search</Button>
       </div>
-      <RouterLink to="user/connexion">Connect</RouterLink>
-      <button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</button>
-      <button @click="selectAll">Select All</button>
-      <button @click="unselectAll">Unselect All</button>
-      <button @click="deleteSelected" :disabled="selectedCount === 0" class="delete-button">Delete Selected</button>
+      <Button @click="router.push('user/connexion')">Connect</Button>
+      <Button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</Button>
+      <Button @click="selectAll">Select All</Button>
+      <Button @click="unselectAll">Unselect All</Button>
+      <Button @click="deleteSelected" :disabled="selectedCount === 0" variant="red">Delete Selected</Button>
     </section>
     <section class="table">
       <div class="header">
-        <span>Email (Selected: {{ selectedCount }})</span>
-        <span>Occurrence</span>
+        <span class="fade-in">Email (Selected: {{ selectedCount }})</span>
+        <span class="fade-in">Occurrence</span>
       </div>
       <RecycleScroller
         class="SenderList"
         :items="senders"
-        :item-size="32"
+        :item-size="50"
         key-field="id"
         v-slot="{ item }"
         v-if="senders.length > 0"
@@ -193,13 +216,13 @@ function toggleAdvanceSearch() {
       </div>
     </RecycleScroller>
     <div class="info" v-else-if="!searching">
-      <img :src="noResultsImage" alt="No results" class="cat-image">
-      <span>I can't find any mails meow. Maybe you should start a search.</span>
-      <SearchBar v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
+      <img :src="noResultsImage" alt="No results" class="cat-image fade-in">
+      <span class="fade-in">I can't find any mails meow. Maybe you should start a search.</span>
+      <SearchBar class="fade-in" v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
     </div>
     <div class="info" v-else>
-      <img :src="searchingImage" alt="Searching..." class="cat-image">
-      <span>I'm searching for your emails... I hope i will get some treats for that.</span>
+      <img :src="searchingImage" alt="Searching..." class="cat-image fade-in">
+      <span class="fade-in">I'm searching for your emails... I hope i will get some treats for that.</span>
     </div>
     </section>
     <div class="progress-container" v-if="isProcessing || progress.total > 0">
@@ -215,12 +238,10 @@ function toggleAdvanceSearch() {
 
 .analyse-view {
   height: 100%;
-  padding: 1rem;
+  padding: var(--s-spacing);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-
-  margin-top: .5rem;
+  gap: var(--m-spacing);
 }
 
 .controls {
@@ -229,17 +250,19 @@ function toggleAdvanceSearch() {
   flex-direction: row;
   justify-content: end;
   align-items: center;
-  column-gap: .5rem;
-  row-gap: .25rem;
+  column-gap: var(--s-spacing);
+  row-gap: var(--s-spacing);
 }
 
 .table {
   display: flex;
   flex-direction: column;
-  gap: .25rem;
   height: 50%;
 
   flex-grow: 1;
+
+  border: 2px solid var(--secondary-color);
+  border-radius: var(--l-border-radius);
 }
 
 .table .info {
@@ -249,7 +272,7 @@ function toggleAdvanceSearch() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: var(--s-spacing);
 }
 
 .table .info img {
@@ -259,36 +282,34 @@ function toggleAdvanceSearch() {
 
 .table .info span {
   display: block;
-  font-size: 2rem;
+  font-size: var(--l-font-size);
 }
 
 .table .header {
-  padding: .7rem 0;
+  padding: var(--s-spacing) var(--m-spacing);
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #cfcfcf;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .SenderList {
   overflow-y: scroll;
-  border-radius: 5px;
 }
 
 .sender-item {
-  height: 32px;
-  padding: 0 1rem;
+  height: 50px;
+  padding: 0 var(--s-spacing);
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--s-spacing);
+  border-bottom: 2px solid #cfcfcf;
 }
 
 .occurrence {
   margin-left: auto;
-  color: #555;
 }
 
 .unselect-button, .delete-button {
@@ -306,7 +327,7 @@ function toggleAdvanceSearch() {
 .search-container {
   display: flex;
   flex-direction: row;
-  gap: 1rem;
+  gap: var(--s-spacing);
   margin-right: auto;
   align-items: center;
   flex-grow: 1;
@@ -318,11 +339,10 @@ function toggleAdvanceSearch() {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: .25rem;
+  gap: var(--xs-spacing);
   height: 25px;
   border-radius: 12px;
   overflow: hidden;
-  border: 2px solid #cfcfcf;
 }
 
 .progress-container progress {

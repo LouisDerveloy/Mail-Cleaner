@@ -132,7 +132,10 @@ function GoogleConnect() {
 
       <section>
         <h2 v-if="thirdPartyLink === ''">You will shortly be redirected to an authentication page.</h2>
-        <h2 v-else>Please open this link to continue : <ExternalLink :href="thirdPartyLink">{{thirdPartyLink}}</ExternalLink></h2>
+        <div v-else>
+          <h2>Please open this link to continue : <ExternalLink :href="thirdPartyLink">{{thirdPartyLink}}</ExternalLink></h2>
+          <h3>Consider using another browser than firefox to open this link please.</h3>
+        </div>
       </section>
 
     </div>
@@ -143,21 +146,19 @@ function GoogleConnect() {
 .connection-view {
   max-width: 800px;
   width: 100%;
-  margin: 1rem;
+  margin: var(--s-spacing);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: start;
-  gap: 1.3rem;
+  gap: var(--s-spacing);
   height: 100%;
-  padding: 2rem;
+  padding: var(--m-spacing);
 }
 
 .connection-view h1 {
   width: 100%;
   text-align: start;
-  font-size: 2rem;
-  font-weight: 100;
   text-transform: uppercase;
 }
 
@@ -172,13 +173,13 @@ function GoogleConnect() {
 }
 
 .connection-type-selector > * {
-  padding: 1rem;
+  padding: var(--s-spacing);
   margin: 0;  
   background: #f7f7f7;
   width: 50%;
   height: 100%;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: var(--s-font-size);
   transition: background-color 0.2s, color 0.2s;
 }
 
@@ -187,14 +188,14 @@ function GoogleConnect() {
 }
 
 .connection-type-selector button:first-child {
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
+  border-top-left-radius: var(--l-border-radius);
+  border-bottom-left-radius: var(--l-border-radius);
   border-right: none;
 }
 
 .connection-type-selector button:last-child {
-  border-top-right-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-top-right-radius: var(--l-border-radius);
+  border-bottom-right-radius: var(--l-border-radius);
 }
 
 .connection-type-selector button.active {
@@ -204,9 +205,9 @@ function GoogleConnect() {
 }
 
 .connection-form {
-  padding: 2rem;
+  padding: var(--m-spacing);
   background: #f7f7f7;
-  border-radius: 8px;
+  border-radius: var(--l-border-radius);
   box-shadow: 0px 0px 20px 0 hsla(0, 0%, 0%, 0.1);
   border: none;
   width: 100%;
@@ -214,27 +215,27 @@ function GoogleConnect() {
 
 .connection-form .field label {
   display: block;
-  margin-bottom: .3rem;
+  margin-bottom: var(--xs-spacing);
   color: #333;
 }
 
 .connection-form .field input {
   width: 100%;
-  padding: .75rem;
+  padding: var(--s-spacing);
   border: 1px solid #ccc;
   border-radius: 4px;
   box-sizing: border-box; /* important */
-  margin-bottom: 1rem;
+  margin-bottom: var(--s-spacing);
 }
 
 .connection-form button {
   width: 100%;
-  padding: .75rem;
+  padding: var(--s-spacing);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--s-border-radius);
   background: #28a745;
   color: white;
-  font-size: 1rem;
+  font-size: var(--s-font-size);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -245,8 +246,8 @@ function GoogleConnect() {
 
 .thirdPartyConnexion {
   width: 100%;
-  margin-top: 2rem;
-  --font-size: 2rem;
+  margin-top: var(--m-spacing);
+  --font-size: var(--l-font-size);
 }
 
 .thirdPartyConnexion h1 {
@@ -256,6 +257,6 @@ function GoogleConnect() {
 
 .thirdPartyConnexion h2 {
   font-size: calc(var(--font-size) * 0.75);
-  margin-top: 1rem;
+  margin-top: var(--s-spacing);
 }
 </style>
