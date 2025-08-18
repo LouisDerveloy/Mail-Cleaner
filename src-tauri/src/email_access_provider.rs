@@ -1,12 +1,12 @@
-use std::cmp::min;
-use std::fmt::{format, Debug, Display};
+use crate::utils::{CommandResult, FailureType, Search};
 use imap;
 use imap::{Connection, Session};
 use serde::Serialize;
-use tauri::ipc::Channel;
-use crate::utils::{CommandResult, FailureType, Search};
+use std::cmp::min;
 use std::collections::HashMap;
+use std::fmt::{format, Debug, Display};
 use std::time::{Duration, Instant};
+use tauri::ipc::Channel;
 
 pub struct OAuthCredentials {
     user: String,
@@ -54,13 +54,21 @@ pub struct MailServer {
 
 impl MailServer {
     pub fn new(domain: String, port: u16) -> MailServer {
-        MailServer { domain, port, }
+        MailServer { domain, port }
     }
 }
 
 pub trait EmailProvider {
-    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Progress>) -> CommandResult<Vec<Sender>>;
-    fn delete_senders(&mut self, sender_emails: Vec<String>, ret_channel: Channel<Progress>) -> CommandResult;
+    fn get_unique_senders_email_list(
+        &mut self,
+        query: String,
+        ret_channel: Channel<Progress>,
+    ) -> CommandResult<Vec<Sender>>;
+    fn delete_senders(
+        &mut self,
+        sender_emails: Vec<String>,
+        ret_channel: Channel<Progress>,
+    ) -> CommandResult;
 }
 
 pub struct EmailAccessProvider {
@@ -83,40 +91,46 @@ pub struct Progress {
 
 impl EmailAccessProvider {
     pub fn new(mail_server: MailServer, credentials: Credentials) -> Result<Self, FailureType> {
-
-        let client = imap::ClientBuilder::new(mail_server.domain, mail_server.port).connect()
+        let client = imap::ClientBuilder::new(mail_server.domain, mail_server.port)
+            .connect()
             .map_err(|e| FailureType::ImapConnectionError(e.to_string()))?;
 
         // Login to the server based on what credentials where chosen by the user.
         let mut imap_session: Session<Connection> = match credentials {
-            Credentials::Password(credentials) => client.login(credentials.user, credentials.password)
+            Credentials::Password(credentials) => client
+                .login(credentials.user, credentials.password)
                 .map_err(|(e, _)| FailureType::ImapConnectionError(e.to_string()))?,
-            Credentials::Oauth(credentials) => client.authenticate("XOAUTH2", &credentials, )
+            Credentials::Oauth(credentials) => client
+                .authenticate("XOAUTH2", &credentials)
                 .map_err(|(e, _)| FailureType::ImapConnectionError(e.to_string()))?,
         };
 
-        imap_session.select("INBOX").map_err(|e| FailureType::ImapConnectionError(e.to_string()))?;
+        imap_session
+            .select("INBOX")
+            .map_err(|e| FailureType::ImapConnectionError(e.to_string()))?;
 
-        Ok(EmailAccessProvider {
-            imap_session,
-        })
+        Ok(EmailAccessProvider { imap_session })
     }
 }
 
 impl EmailProvider for EmailAccessProvider {
-    fn get_unique_senders_email_list(&mut self, query: String, ret_channel: Channel<Progress>) -> CommandResult<Vec<Sender>> {
-
+    fn get_unique_senders_email_list(
+        &mut self,
+        query: String,
+        ret_channel: Channel<Progress>,
+    ) -> CommandResult<Vec<Sender>> {
         // time benchmark
         let mut fetch_t: Vec<Duration> = Vec::new();
         let mut treatment_t: Vec<Duration> = Vec::new();
-
-
 
         println!("Get inbox senders' address from query: {}", query);
 
         // Search for all the ids of emails which match the request <BODY unsubscribe> that mean the body has to contain the word unsubscribe
         let search_t = Instant::now();
-        let search_result = self.imap_session.search(query).map_err(|e| FailureType::UnknownError(e.to_string()))?;
+        let search_result = self
+            .imap_session
+            .search(query)
+            .map_err(|e| FailureType::UnknownError(e.to_string()))?;
         let search_t = search_t.elapsed();
 
         let total_emails = search_result.len() as u32;
@@ -124,8 +138,12 @@ impl EmailProvider for EmailAccessProvider {
 
         let mut senders_map: HashMap<String, Sender> = HashMap::new();
 
-        for (index, chunk) in search_result.into_iter().collect::<Vec<_>>().chunks(100).enumerate() {
-
+        for (index, chunk) in search_result
+            .into_iter()
+            .collect::<Vec<_>>()
+            .chunks(100)
+            .enumerate()
+        {
             // Batch fetch
             let sequence_set = chunk
                 .iter()
@@ -145,21 +163,28 @@ impl EmailProvider for EmailAccessProvider {
                         if let Some(_senders) = &envelop.sender {
                             for sender in _senders {
                                 // Check if mailbox and host are defined
-                                if let (Some(mailbox), Some(host)) = (sender.mailbox.as_ref(), sender.host.as_ref()) {
+                                if let (Some(mailbox), Some(host)) =
+                                    (sender.mailbox.as_ref(), sender.host.as_ref())
+                                {
                                     let email = format!(
                                         "{}@{}",
                                         String::from_utf8_lossy(mailbox),
                                         String::from_utf8_lossy(host)
                                     );
-                                    let _name = sender.name.as_ref().map(|s| String::from_utf8_lossy(s.as_ref()).to_string());
+                                    let _name = sender
+                                        .name
+                                        .as_ref()
+                                        .map(|s| String::from_utf8_lossy(s.as_ref()).to_string());
 
                                     // Get ref to the entry or create one if it doesn't exist.
-                                    let sender_entry = senders_map.entry(email.clone()).or_insert_with(|| Sender {
-                                        id: 0, // Placeholder, will be set later
-                                        name: _name,
-                                        email,
-                                        occurrence: 0,
-                                    });
+                                    let sender_entry = senders_map
+                                        .entry(email.clone())
+                                        .or_insert_with(|| Sender {
+                                            id: 0, // Placeholder, will be set later
+                                            name: _name,
+                                            email,
+                                            occurrence: 0,
+                                        });
                                     sender_entry.occurrence += 1;
                                 }
                             }
@@ -169,8 +194,10 @@ impl EmailProvider for EmailAccessProvider {
             }
             treatment_t.push(tmp_treatment_t.elapsed());
 
-
-            let progress = Progress { current: min((index as u32 + 1)*100, total_emails), total: total_emails };
+            let progress = Progress {
+                current: min((index as u32 + 1) * 100, total_emails),
+                total: total_emails,
+            };
             ret_channel.send(progress).unwrap();
         }
 
@@ -183,7 +210,10 @@ impl EmailProvider for EmailAccessProvider {
         }
         let serialize_t = serialize_t.elapsed();
 
-        let total_time: Duration = search_t + serialize_t + fetch_t.iter().sum::<Duration>() + treatment_t.iter().sum::<Duration>();
+        let total_time: Duration = search_t
+            + serialize_t
+            + fetch_t.iter().sum::<Duration>()
+            + treatment_t.iter().sum::<Duration>();
         println!("Total time elapsed: {}", total_time.as_millis().to_string());
 
         println!("Search request time: {}", search_t.as_millis().to_string());
@@ -191,32 +221,58 @@ impl EmailProvider for EmailAccessProvider {
         let total_fetch: Duration = fetch_t.iter().sum::<Duration>();
         let mean_fetch = total_fetch / fetch_t.len() as u32;
         println!("Fetch:");
-        println!("  Mean time elapsed: {}", mean_fetch.as_millis().to_string());
-        println!("  Total time elapsed: {}", total_fetch.as_millis().to_string());
-        println!("  Max: {}", fetch_t.iter().max().unwrap().as_millis().to_string());
+        println!(
+            "  Mean time elapsed: {}",
+            mean_fetch.as_millis().to_string()
+        );
+        println!(
+            "  Total time elapsed: {}",
+            total_fetch.as_millis().to_string()
+        );
+        println!(
+            "  Max: {}",
+            fetch_t.iter().max().unwrap().as_millis().to_string()
+        );
 
         let total_treatment: Duration = treatment_t.iter().sum::<Duration>();
         let mean_treatment = total_treatment / treatment_t.len() as u32;
         println!("Treatment:");
-        println!("  Mean time elapsed: {}", mean_treatment.as_millis().to_string());
-        println!("  Total time elapsed: {}", total_treatment.as_millis().to_string());
-        println!("  Max: {}", treatment_t.iter().max().unwrap().as_millis().to_string());
+        println!(
+            "  Mean time elapsed: {}",
+            mean_treatment.as_millis().to_string()
+        );
+        println!(
+            "  Total time elapsed: {}",
+            total_treatment.as_millis().to_string()
+        );
+        println!(
+            "  Max: {}",
+            treatment_t.iter().max().unwrap().as_millis().to_string()
+        );
 
         println!("Serialize time : {}", serialize_t.as_millis().to_string());
-
 
         Ok(final_senders)
     }
 
-    fn delete_senders(&mut self, sender_emails: Vec<String>, ret_channel: Channel<Progress>) -> CommandResult {
+    fn delete_senders(
+        &mut self,
+        sender_emails: Vec<String>,
+        ret_channel: Channel<Progress>,
+    ) -> CommandResult {
         let mut uids_to_delete = std::collections::BTreeSet::new();
-        let mut progress = Progress { current: 0, total: 0 };
+        let mut progress = Progress {
+            current: 0,
+            total: 0,
+        };
 
         for sender_email in &sender_emails {
             println!("Searching emails from: {}", sender_email);
 
             let search_criteria = format!("FROM \"{}\"", sender_email);
-            let messages = self.imap_session.search(search_criteria)
+            let messages = self
+                .imap_session
+                .search(search_criteria)
                 .map_err(|e| FailureType::UnknownError(e.to_string()))?;
 
             for uid in messages.iter() {
@@ -226,7 +282,6 @@ impl EmailProvider for EmailAccessProvider {
             }
             ret_channel.send(progress.clone()).unwrap();
         }
-
 
         if uids_to_delete.is_empty() {
             println!("No emails to delete.");
@@ -245,19 +300,21 @@ impl EmailProvider for EmailAccessProvider {
 
             if !sequence_set.is_empty() {
                 println!("Marking {} emails for deletion.", chunk.len());
-                self.imap_session.store(&sequence_set, "+FLAGS (\\Deleted)")
+                self.imap_session
+                    .store(&sequence_set, "+FLAGS (\\Deleted)")
                     .map_err(|e| FailureType::UnknownError(e.to_string()))?;
-                
+
                 progress.current += chunk.len() as u32;
                 ret_channel.send(progress.clone()).unwrap();
             }
         }
 
         println!("Expunging marked emails.");
-        self.imap_session.expunge()
+        self.imap_session
+            .expunge()
             .map_err(|e| FailureType::UnknownError(e.to_string()))?;
         println!("Successfully expunged emails.");
-        
+
         // Ensure final progress is sent.
         progress.current = progress.total;
         ret_channel.send(progress.clone()).unwrap();
@@ -268,6 +325,8 @@ impl EmailProvider for EmailAccessProvider {
 
 impl Drop for EmailAccessProvider {
     fn drop(&mut self) {
-        self.imap_session.logout().expect("imap session logout failed");
+        self.imap_session
+            .logout()
+            .expect("imap session logout failed");
     }
 }

@@ -1,30 +1,40 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri::ipc::{Channel};
-use std::sync::{Mutex, MutexGuard};
 use oauth2::RefreshToken;
+use std::sync::{Mutex, MutexGuard};
+use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 mod email_access_provider;
-use crate::email_access_provider::{Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials, PasswordCredentials, Sender, Progress};
+use crate::email_access_provider::{
+    Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials,
+    PasswordCredentials, Progress, Sender,
+};
+
 mod utils;
-use crate::utils::{CommandResult, FailureType, constuct_query, Search};
+use crate::utils::{constuct_query, CommandResult, FailureType, Search};
 
 mod oauth_handling;
+use crate::oauth_handling::UserFeedback;
 
 #[tauri::command]
-async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_channel: Channel<Progress>, query: Search) -> CommandResult<Vec<Sender>> {
-
+async fn get_list(
+    state: State<'_, Mutex<AppState>>,
+    app_handle: AppHandle,
+    ret_channel: Channel<Progress>,
+    query: Search,
+) -> CommandResult<Vec<Sender>> {
     match state.lock() {
         Err(_) => Err(FailureType::FailedToLockState),
 
         Ok(mut _state) => {
             match _state.email_session {
                 None => {
-                    app_handle.emit("open-login-page", "").expect("Couldn't emit open-login-page");
+                    app_handle
+                        .emit("open-login-page", "")
+                        .expect("Couldn't emit open-login-page");
                     Err(FailureType::NotConnected)
                 }
                 Some(ref mut session) => {
-
                     // Create query
                     let query = constuct_query(query);
 
@@ -32,8 +42,8 @@ async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_
                         Ok(emails_list) => {
                             _state.emails_list = Some(emails_list.clone());
                             Ok(emails_list)
-                        },
-                        Err(err) => Err(err)
+                        }
+                        Err(err) => Err(err),
                     }
                 }
             }
@@ -41,21 +51,22 @@ async fn get_list(state: State<'_, Mutex<AppState>>, app_handle: AppHandle, ret_
     }
 }
 
-
 #[tauri::command]
 async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> CommandResult {
     let guard: MutexGuard<AppState> = match state.lock().ok() {
         None => {
             return Err(FailureType::FailedToLockState);
-        },
-        Some(data) => data
+        }
+        Some(data) => data,
     };
 
     if guard.email_session.is_none() {
         println!("email session is none");
         println!("Please provide an email session");
 
-        app_handle.emit("open-login-page", "").expect("failed to emit open-login-page event in test command.");
+        app_handle
+            .emit("open-login-page", "")
+            .expect("failed to emit open-login-page event in test command.");
     } else {
         println!("email session is not none");
     }
@@ -63,13 +74,15 @@ async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Comma
     Ok(())
 }
 
-
-
 #[tauri::command]
-async fn delete_senders(state: State<'_, Mutex<AppState>>, sender_ids: Vec<u32>, ret_channel: Channel<Progress>) -> CommandResult {
+async fn delete_senders(
+    state: State<'_, Mutex<AppState>>,
+    sender_ids: Vec<u32>,
+    ret_channel: Channel<Progress>,
+) -> CommandResult {
     let mut guard = match state.lock() {
         Ok(guard) => guard,
-        Err(_) => return Err(FailureType::FailedToLockState)
+        Err(_) => return Err(FailureType::FailedToLockState),
     };
 
     let emails_to_delete: Vec<String> = if let Some(emails_list) = &guard.emails_list {
@@ -84,11 +97,15 @@ async fn delete_senders(state: State<'_, Mutex<AppState>>, sender_ids: Vec<u32>,
         }
         emails
     } else {
-        return Err(FailureType::UnknownError("Email list not available".to_string()));
+        return Err(FailureType::UnknownError(
+            "Email list not available".to_string(),
+        ));
     };
 
     if emails_to_delete.is_empty() {
-        return Err(FailureType::UnknownError("No valid sender emails found for given IDs.".to_string()));
+        return Err(FailureType::UnknownError(
+            "No valid sender emails found for given IDs.".to_string(),
+        ));
     }
 
     if let Some(session) = &mut guard.email_session {
@@ -101,8 +118,13 @@ async fn delete_senders(state: State<'_, Mutex<AppState>>, sender_ids: Vec<u32>,
 }
 
 #[tauri::command]
-async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16,email: String, token: String) -> CommandResult {
-
+async fn token_connect(
+    state: State<'_, Mutex<AppState>>,
+    server: String,
+    port: u16,
+    email: String,
+    token: String,
+) -> CommandResult {
     let provider = MailServer::new(server, port);
     let cred = Credentials::Oauth(OAuthCredentials::new(email, token));
 
@@ -112,16 +134,21 @@ async fn token_connect(state: State<'_, Mutex<AppState>>, server: String, port: 
         Ok(mut _state) => {
             _state.mail_server = Some(provider);
             _state.email_session = Some(email_session);
-
         }
-        Err(_) => return Err(FailureType::FailedToLockState)
+        Err(_) => return Err(FailureType::FailedToLockState),
     }
 
     Ok(())
 }
 
 #[tauri::command]
-async fn password_connect(state: State<'_, Mutex<AppState>>, server: String, port: u16, email: String, password: String) -> CommandResult {
+async fn password_connect(
+    state: State<'_, Mutex<AppState>>,
+    server: String,
+    port: u16,
+    email: String,
+    password: String,
+) -> CommandResult {
     let provider = MailServer::new(server, port);
     let cred = Credentials::Password(PasswordCredentials::new(email, password));
 
@@ -132,22 +159,24 @@ async fn password_connect(state: State<'_, Mutex<AppState>>, server: String, por
             _state.mail_server = Some(provider);
             _state.email_session = Some(email_session);
         }
-        Err(_) => return Err(FailureType::FailedToLockState)
+        Err(_) => return Err(FailureType::FailedToLockState),
     }
 
     Ok(())
 }
 
 #[tauri::command]
-async fn gmail_oauth_request(state: State<'_, Mutex<AppState>>) -> CommandResult {
-
-    let (secret_token, refresh_token, email) = oauth_handling::get_token().await?;
+async fn gmail_oauth_request(
+    state: State<'_, Mutex<AppState>>,
+    feedback_channel: Channel<UserFeedback>,
+) -> CommandResult {
+    let (secret_token, refresh_token, email) = oauth_handling::get_token(feedback_channel).await?;
 
     match state.lock() {
         Ok(mut _state) => {
             _state.refresh_token = refresh_token;
         }
-        Err(_) => return Err(FailureType::FailedToLockState)
+        Err(_) => return Err(FailureType::FailedToLockState),
     }
 
     token_connect(state, "imap.gmail.com".into(), 993, email, secret_token).await
@@ -158,20 +187,27 @@ struct AppState {
     email_session: Option<EmailAccessProvider>,
     mail_server: Option<MailServer>,
     emails_list: Option<Vec<Sender>>,
-    refresh_token: Option<RefreshToken>
+    refresh_token: Option<RefreshToken>,
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             app.manage(Mutex::new(AppState::default()));
             Ok(())
         })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_list, test, token_connect, delete_senders, password_connect, gmail_oauth_request])
+        .invoke_handler(tauri::generate_handler![
+            get_list,
+            test,
+            token_connect,
+            delete_senders,
+            password_connect,
+            gmail_oauth_request
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

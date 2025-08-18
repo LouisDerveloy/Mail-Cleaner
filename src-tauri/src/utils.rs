@@ -1,5 +1,5 @@
-use serde::Serialize;
 use serde::Deserialize;
+use serde::Serialize;
 
 pub type CommandResult<T = ()> = Result<T, FailureType>;
 
@@ -11,6 +11,7 @@ pub enum FailureType {
     NotConnected,
     UnknownError(String),
     IDDidntMatch,
+    ChannelError(String),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

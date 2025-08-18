@@ -1,28 +1,28 @@
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::fs;
-use std::{collections::HashMap, fs::read_to_string};
 use std::path::Path;
-use serde::{Serialize, Deserialize};
-use serde_json::{Value};
+use std::{collections::HashMap, fs::read_to_string};
 
 use oauth2;
 use webbrowser;
 
-use hyper::{body::Bytes, server::conn::http1, service::service_fn, Request, Response};
 use http_body_util::Full;
+use hyper::{body::Bytes, server::conn::http1, service::service_fn, Request, Response};
 use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
-use std::net;
-use std::convert::Infallible;
-use tokio::sync::{ oneshot, Mutex };
-use std::sync::{Arc};
 use oauth2::{AuthorizationCode, RefreshToken, TokenResponse};
+use std::convert::Infallible;
+use std::net;
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use tokio::sync::{oneshot, Mutex};
 use tokio::time::{timeout, Duration};
 
 use reqwest;
 
-use serde::de::IntoDeserializer;
-
 use crate::utils::{CommandResult, FailureType};
+use serde::de::IntoDeserializer;
+use tauri::ipc::Channel;
 
 // Struct to represent client_secret.json
 #[derive(Serialize, Deserialize, Debug)]
@@ -45,9 +45,19 @@ struct GoogleUserInfo {
     picture: Option<String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserFeedback {
+    pub update_type: UpdateType,
+    pub content: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum UpdateType {
+    Status,
+    Link,
+}
 
 fn parse_client_secret_json<P: AsRef<Path>>(file_uri: P) -> serde_json::Result<Value> {
-
     let json = read_to_string(file_uri).expect("Couldn't read the file");
 
     println!("JSON: \n{}", json.trim());
@@ -55,20 +65,39 @@ fn parse_client_secret_json<P: AsRef<Path>>(file_uri: P) -> serde_json::Result<V
     serde_json::from_str::<Value>(&json.trim())
 }
 
-pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)> { // (secret_token, Option<refresh_token>, email)
+pub async fn get_token(
+    feedback_channel: Channel<UserFeedback>,
+) -> CommandResult<(String, Option<RefreshToken>, String)> {
+    // (secret_token, Option<refresh_token>, email)
     let client_secret_path = String::from("client_secret.json");
 
-    if !(fs::exists(client_secret_path.clone()).expect("Coudn't verify the existence of the credentials.")) {
+    if !(fs::exists(client_secret_path.clone())
+        .expect("Coudn't verify the existence of the credentials."))
+    {
         println!("Couldn't find the credentials at {}", client_secret_path);
         Err(FailureType::UnknownError("No client credentials".into()))
     } else {
-        let client_secret = parse_client_secret_json(client_secret_path).expect("An error occured. While parsing the client_secret");
+        let client_secret = parse_client_secret_json(client_secret_path)
+            .expect("An error occured. While parsing the client_secret");
 
         // Create the http server that will catch the callback from the auth_url request to google servers
+
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Status,
+                content: "Starting callback server".into(),
+            })
+            .map_err(|e| FailureType::ChannelError("Starting callback server".into()))?;
+
         // Create listener for TCP connexion
         let addr = net::SocketAddr::from(([127, 0, 0, 1], 0));
-        let listener = TcpListener::bind(&addr).await.expect("Couldn't create TCP listener on 127.0.0.1:0");
-        let port: u16 = listener.local_addr().expect("Couldn't retrieve local ip used").port();
+        let listener = TcpListener::bind(&addr)
+            .await
+            .expect("Couldn't create TCP listener on 127.0.0.1:0");
+        let port: u16 = listener
+            .local_addr()
+            .expect("Couldn't retrieve local ip used")
+            .port();
 
         let (tx, rx) = oneshot::channel::<AuthCallback>();
         let tx = Arc::new(Mutex::new(Some(tx)));
@@ -107,6 +136,12 @@ pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)
             })
         };
 
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Status,
+                content: "Creating OAuth client".into(),
+            })
+            .map_err(|e| FailureType::ChannelError("Creating OAuth client".into()))?;
 
         // OAuth authentication
         let client = oauth2::basic::BasicClient::new(get_client_id(&client_secret))
@@ -116,14 +151,32 @@ pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)
             .set_redirect_uri(get_redirect_uri(&client_secret, port));
 
         // Generate a PKCE challenge. (Proof Key for Code Exchange)
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Status,
+                content: "Generating PKCE challenge".into(),
+            })
+            .map_err(|e| FailureType::ChannelError("Generating PKCE challenge".into()))?;
+
         let (pkce_challenge, pkce_verifier) = oauth2::PkceCodeChallenge::new_random_sha256();
 
         // Generate the full authorization URL.
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Status,
+                content: "Generating authentication url and csrf token".into(),
+            })
+            .map_err(|e| {
+                FailureType::ChannelError("Generating authentication url and csrf token".into())
+            })?;
+
         let (auth_url, csrf_token) = client
             .authorize_url(oauth2::CsrfToken::new_random)
             // Set the desired scopes.
-            .add_scope(oauth2::Scope::new("openid".into()))// Scope to get the openid info of the authenticated user
-            .add_scope(oauth2::Scope::new("https://www.googleapis.com/auth/userinfo.email".into())) // Scope to include the email of the account used to sign in
+            .add_scope(oauth2::Scope::new("openid".into())) // Scope to get the openid info of the authenticated user
+            .add_scope(oauth2::Scope::new(
+                "https://www.googleapis.com/auth/userinfo.email".into(),
+            )) // Scope to include the email of the account used to sign in
             .add_scope(oauth2::Scope::new("https://mail.google.com".into()))
             // Set the PKCE code challenge.
             .set_pkce_challenge(pkce_challenge)
@@ -131,13 +184,28 @@ pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)
 
         // This is the URL you should redirect the user to, in order to trigger the authorization
         // process.
-        println!("Redirect to: {}", auth_url);
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Link,
+                content: auth_url.clone().into(),
+            })
+            .map_err(|e| FailureType::ChannelError("Couldn't send authentication link".into()))?;
+
         webbrowser::open(&auth_url.as_str()).unwrap_or_else(|e| {
             println!("Couldn't open the URL: {}. {}", auth_url, e);
-            println!("Please to c ontinue the authentication process please manually go to the url.")
-        });
+            println!(
+                "Please to c ontinue the authentication process please manually go to the url."
+            )
+        }); // Try to automatically open the url in the user's default browser
 
         // Waiting for the google auth screen callback with a timeout of 10 minutes (600secs)
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Status,
+                content: "Waiting for callback".into(),
+            })
+            .map_err(|e| FailureType::ChannelError("Waiting for callback".into()))?;
+
         let callback = timeout(Duration::from_secs(600), rx)
             .await
             .expect("Timeout en attente du callback (180s)")
@@ -146,8 +214,13 @@ pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)
         // Stop the server
         server_task.abort();
 
-        println!("csrf_token: {:?}", csrf_token.clone().into_secret());
-        println!("google_csrf_token: {:?}", callback.state);
+        // Check CSRF validity
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Status,
+                content: "Checking csrf".into(),
+            })
+            .map_err(|e| FailureType::ChannelError("Checking csrf".into()))?;
 
         if callback.state.is_none() {
             eprintln!("Error: state CSRF wasn't returned by the server");
@@ -155,11 +228,23 @@ pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)
             std::process::exit(1);
         }
 
-        if csrf_token.into_secret() != callback.state.expect("CSRF missing from the google callback.") {
+        if csrf_token.into_secret()
+            != callback
+                .state
+                .expect("CSRF missing from the google callback.")
+        {
             eprintln!("Error: state CSRF doesn't match");
             eprintln!("Please try again. If the problem stays, contact the developer.");
             std::process::exit(1);
         }
+
+        // Retrieve access_token
+        feedback_channel
+            .send(UserFeedback {
+                update_type: UpdateType::Status,
+                content: "Retrieving access token".into(),
+            })
+            .map_err(|e| FailureType::ChannelError("Retrieving access token".into()))?;
 
         let http_client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
@@ -187,18 +272,20 @@ pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)
             // Endpoint recommandé OIDC
             .get("https://openidconnect.googleapis.com/v1/userinfo")
             .bearer_auth(access_token.as_str())
-            .send().await
+            .send()
+            .await
             .expect("Couldn't retrieve user openid info.")
-            .json::<GoogleUserInfo>().await
+            .json::<GoogleUserInfo>()
+            .await
             .expect("Couldn't deserialize user info");
 
-
-        println!("Token: {}", final_tokens.access_token().secret());
         println!("Google User's info : {:?}", userinfo);
 
         Ok((
             access_token,
-            final_tokens.refresh_token().and_then(|refresh_token: &RefreshToken| Some(refresh_token.clone())),
+            final_tokens
+                .refresh_token()
+                .and_then(|refresh_token: &RefreshToken| Some(refresh_token.clone())),
             userinfo.email,
         ))
     }
@@ -206,55 +293,60 @@ pub async fn get_token() -> CommandResult<(String, Option<RefreshToken>, String)
 
 fn get_redirect_uri(client_secret: &Value, port: u16) -> oauth2::RedirectUrl {
     let mut redirect_uri = client_secret
-        .get("installed").unwrap()
-        .get("redirect_uris").unwrap()
-        .as_array().unwrap()
-        .first().unwrap()
+        .get("installed")
+        .unwrap()
+        .get("redirect_uris")
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .first()
+        .unwrap()
         .to_string();
     redirect_uri = redirect_uri.trim().trim_matches('"').into();
     redirect_uri = format!("{}:{}", redirect_uri, port);
-    oauth2::RedirectUrl::new(
-        redirect_uri
-    ).expect("Couldn't create oauth::RedirectUrl")
+    oauth2::RedirectUrl::new(redirect_uri).expect("Couldn't create oauth::RedirectUrl")
 }
 
 fn get_token_uri(client_secret: &Value) -> oauth2::TokenUrl {
     let mut token_uri = client_secret
-        .get("installed").unwrap()
-        .get("token_uri").unwrap()
+        .get("installed")
+        .unwrap()
+        .get("token_uri")
+        .unwrap()
         .to_string();
     token_uri = token_uri.trim().trim_matches('"').into();
-    oauth2::TokenUrl::new(
-        token_uri
-    ).expect("Couldn't create oauth2::TokenUrl")
+    oauth2::TokenUrl::new(token_uri).expect("Couldn't create oauth2::TokenUrl")
 }
 
 fn get_auth_uri(client_secret: &Value) -> oauth2::AuthUrl {
     let mut auth_uri = client_secret
-        .get("installed").unwrap()
-        .get("auth_uri").unwrap()
+        .get("installed")
+        .unwrap()
+        .get("auth_uri")
+        .unwrap()
         .to_string();
     auth_uri = auth_uri.trim().trim_matches('"').into();
-    oauth2::AuthUrl::new(auth_uri)
-        .expect("[get_auth_uri] Couldn't create oauth::AuthUrl")
+    oauth2::AuthUrl::new(auth_uri).expect("[get_auth_uri] Couldn't create oauth::AuthUrl")
 }
 
 fn get_client_secret(client_secret: &Value) -> oauth2::ClientSecret {
-    let mut client_secret = client_secret.get("installed").unwrap()
-        .get("client_secret").unwrap()
+    let mut client_secret = client_secret
+        .get("installed")
+        .unwrap()
+        .get("client_secret")
+        .unwrap()
         .to_string();
     client_secret = client_secret.trim().trim_matches('"').into();
-    oauth2::ClientSecret::new(
-        client_secret,
-    )
+    oauth2::ClientSecret::new(client_secret)
 }
 
 fn get_client_id(client_secret: &Value) -> oauth2::ClientId {
-    let mut client_id = client_secret.get("installed").unwrap()
-        .get("client_id").unwrap()
+    let mut client_id = client_secret
+        .get("installed")
+        .unwrap()
+        .get("client_id")
+        .unwrap()
         .to_string();
     client_id = client_id.trim().trim_matches('"').into();
-    oauth2::ClientId::new(
-        client_id
-    )
+    oauth2::ClientId::new(client_id)
 }

@@ -8,7 +8,8 @@ type FailureType =
   | 'FailedToLockState'
   | 'NotConnected'
   | { UnknownError: string }
-  | 'IDDidntMatch';
+  | 'IDDidntMatch'
+  | { ChannelError: String };
 
 function getErrorMessage(error: unknown): string {
     // Type assertion to treat the unknown error as a potential FailureType
@@ -41,6 +42,9 @@ function getErrorMessage(error: unknown): string {
         }
         if ('UnknownError' in failure && typeof (failure as any).UnknownError === 'string') {
             return `An unknown error occurred: ${(failure as { UnknownError: string }).UnknownError}`;
+        }
+        if ('ChannelError' in failure && typeof (failure as any).ChannelError === 'string') {
+            return `An error occurred in channel communication: ${(failure as { ChannelError: string }).ChannelError}`;
         }
     }
     

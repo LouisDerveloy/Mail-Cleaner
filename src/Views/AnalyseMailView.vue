@@ -130,6 +130,7 @@ async function deleteSelected() {
     
     isProcessing.value = true;
     progress.value = { current: 0, total: 0 };
+
     const channel = new Channel();
 
     channel.onmessage = (response: unknown) => {

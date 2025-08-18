@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {ref} from "vue";
-import {invoke} from "@tauri-apps/api/core";
+import {Channel, invoke} from "@tauri-apps/api/core";
 import {useRouter} from "vue-router";
 import { handleError } from "../lib/error";
 import ThirdPartyConnexionButton from "../Components/ThirdPartyConnexionButton.vue";
@@ -44,13 +44,33 @@ function PasswordConnect() {
   }).catch(handleError)
 }
 
+// Interface to describe communication between backend and frontend
+interface UserFeedback {
+  update_type: string;
+  content: string;
+}
+
 function GoogleConnect() {
   connectionType.value = "thirdparty";
 
-  // invoke("gmail_oauth_request").then(value => {
-  //   console.log("Connect with google Resulgt: ", value);
-  //   router.push("/")
-  // })
+  const channel = new Channel();
+
+  channel.onmessage = (response: unknown) => {
+    let update_type = (response as UserFeedback).update_type;
+
+    if (update_type === "Status") {
+      thirdPartyMessage.value = (response as UserFeedback).content;
+    } else if (update_type === "Link") {
+      thirdPartyLink.value = (response as UserFeedback).content;
+    }
+
+    console.log(response);
+  }
+
+  invoke("gmail_oauth_request", {feedbackChannel: channel}).then(value => {
+    console.log("Connect with google Resulgt: ", value);
+    router.push("/")
+  })
 }
 
 </script>
