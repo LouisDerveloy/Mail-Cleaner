@@ -1,12 +1,16 @@
-<script setup lang="ts">
-import { computed } from 'vue';
+<script lang="ts" setup>
+import {computed} from 'vue';
 import TipTool from '../Components/TipTool.vue';
+import CrossIco from '../assets/images/cross.svg';
 
 const props = defineProps<{
-  modelValue: string | boolean;
+  modelValue: string | boolean | number;
   label: string;
-  isDate?: boolean;
-  tip: string;
+  tip?: string;
+  placeholder?: string;
+  type: 'text' | 'date' | 'number' | 'checkbox' | 'password';
+  max?: number;
+  min?: number;
 }>();
 
 const emit = defineEmits(['update:modelValue']);
@@ -20,6 +24,11 @@ const boolValue = computed({
   get: () => props.modelValue as boolean,
   set: (value) => emit('update:modelValue', value),
 });
+
+const numberModel = computed({
+  get: () => props.modelValue as number,
+  set: (value) => emit('update:modelValue', value),
+})
 
 const dateValue = computed({
   get() {
@@ -61,22 +70,29 @@ function clearInput() {
 </script>
 
 <template>
-  <div class="form-group">
+  <div :class="['form-group', {'bool' : props.type === 'checkbox'}]">
     <label>
       {{ label }}
-      <TipTool :text="tip" />
+      <TipTool v-if="typeof props.tip !== 'undefined'" :text="tip!"/>
     </label>
 
-    <div v-if="typeof modelValue === 'boolean'" class="input bool">
-      <input v-model="boolValue" type="checkbox" class="checkbox-input" />
+    <div v-if="props.type === 'checkbox'" class="input bool">
+      <input v-model="boolValue" class="checkbox-input" type="checkbox"/>
     </div>
-    <div v-else-if="isDate" class="input">
-      <input v-model="dateValue" type="date" />
-      <span v-if="modelValue" @click="clearInput" class="clear-btn">X</span>
+    <div v-else-if="props.type === 'date'" class="input">
+      <input v-model="dateValue" type="date"/>
+      <img v-if="modelValue" :src="CrossIco" class="clear-btn" @click="clearInput"/>
     </div>
-    <div v-else class="input">
-      <input v-model="textValue" type="text" :placeholder="label" />
-      <span v-if="modelValue" @click="clearInput" class="clear-btn">X</span>
+    <div v-else-if="props.type === 'text' || props.type === 'password'" class="input">
+      <input v-model="textValue"
+             :placeholder="typeof props.placeholder === 'undefined' ? props.label : props.placeholder"
+             :type="props.type"
+      />
+      <img v-if="modelValue" :src="CrossIco" class="clear-btn" @click="clearInput"/>
+    </div>
+    <div v-else-if="props.type === 'number'" class="input">
+      <input v-model="numberModel"  :min="props.min" :max="props.max" :placeholder="typeof props.placeholder === 'undefined' ? props.label : props.placeholder"
+             type="number">
     </div>
   </div>
 </template>
@@ -85,27 +101,29 @@ function clearInput() {
 .form-group {
   width: 100%;
   max-width: 400px;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--s-spacing);
   display: flex;
   flex-direction: column;
 }
 
 label {
+  color: var(--background-color-text);
   font-weight: bold;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--xs-spacing);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--xs-spacing);
 }
 
 .input {
   display: flex;
   flex-direction: row;
   width: 100%;
-  gap: .25rem;
+  gap: var(--xs-spacing);
   flex-wrap: nowrap;
-  padding: .25rem;
-  border-bottom: 1px solid #151515;
+  padding: var(--xs-spacing);
+  border: 1px solid #151515;
+  border-radius: var(--s-border-radius);
   align-items: center;
 }
 
@@ -119,9 +137,9 @@ label {
 
 .clear-btn {
   cursor: pointer;
-  padding: 0 .5rem;
-  font-weight: bold;
-  color: #888;
+  padding: 0 var(--xs-spacing);
+  stroke: #888;
+  height: 16px;
 }
 
 .checkbox-input {
@@ -132,5 +150,34 @@ label {
 input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
   filter: invert(0.5);
+}
+
+/* We totally change the behavior if the input is supposed to be a check box */
+.form-group.bool {
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: start;
+  gap: var(--xs-spacing);
+  width: min-content;
+}
+
+.form-group.bool .input {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.form-group.bool .input input {
+  height: 20px;
+  aspect-ratio: 1/1;
+  accent-color: var(--primary-color);
+}
+
+.form-group.bool label {
+  margin: 0;
+}
+
+.form-group.bool label span {
+  margin: 0;
 }
 </style>

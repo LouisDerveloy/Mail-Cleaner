@@ -30,8 +30,8 @@ listen("open-login-page", () => {
 
 .app-main {
   /* Global variable for the app */
-  --primary-color: hsl(230, 100%, 60%);
-  --primary-color-text: hsl(0, 0%, 95%);
+  --primary-color: hsl(217, 100%, 64%);
+  --primary-color-text: hsl(38, 90%, 8%);
   --secondary-color: hsl(34, 100%, 84%);
   --secondary-color-text: hsl(38, 90%, 8%);
   --red-color: hsl(0, 100%, 34%);

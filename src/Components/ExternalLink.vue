@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { openUrl } from '@tauri-apps/plugin-opener';
+import {openUrl} from '@tauri-apps/plugin-opener';
 import copy_paste from '../assets/images/copy_paste.png';
-import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import {writeText} from '@tauri-apps/plugin-clipboard-manager';
+import gsap from 'gsap';
+import {onMounted, onBeforeUnmount, ref} from "vue";
 
 interface Props {
   href: string
+  copybutton?: boolean
 }
+
 const props = defineProps<Props>();
 
 function isHttpLike(url: string) {
@@ -29,26 +33,43 @@ function onAuxClick(e: MouseEvent) {
   e.preventDefault();
   openExternal();
 }
+
+let copyBtn = ref<HTMLButtonElement | null>(null);
+let ctx: gsap.Context | null = ref(null);
+onMounted(() => {
+  ctx = gsap.context(() => {
+    if (copyBtn.value === null) return;
+
+    copyBtn.value.addEventListener('mousedown', () => gsap.to(copyBtn.value, {scale: 0.8, duration: 0.1, ease: "power1.out"}));
+    const releaseAnimation = () => gsap.to(copyBtn.value, {scale: 1, duration: 0.1, ease: "power1.out"});
+    copyBtn.value.addEventListener('mouseup', releaseAnimation);
+    copyBtn.value.addEventListener('mouseleave', releaseAnimation);
+
+      }
+  );
+});
+onBeforeUnmount(() => ctx?.revert())
 </script>
 <template>
-  <div class="external_link">
+  <span class="external_link">
     <a
         :href="href"
         rel="noopener"
         @click="onClick"
         @auxclick="onAuxClick"
     >
-      <slot  />
+      <slot/>
     </a>
-    <button @click="writeText(props.href);"><img :src="copy_paste" alt="Copy to clipboard" /></button>
-  </div>
+    <button v-if="props.copybutton" ref="copyBtn" @click="writeText(props.href);"><img :src="copy_paste" alt="Copy to clipboard"/></button>
+  </span>
 </template>
 <style scoped>
 .external_link {
   display: flex;
   flex-direction: row;
+  align-items: center;
   flex-wrap: nowrap;
-  gap: 1rem;
+  gap: var(--s-spacing);
 }
 
 .external_link a {
@@ -67,6 +88,13 @@ function onAuxClick(e: MouseEvent) {
   margin: 0;
   padding: 0;
   position: relative;
+  border: none;
+  outline: none;
+}
+
+.external_link button:focus {
+  outline: none;
+  border: none;
 }
 
 .external_link button::before {

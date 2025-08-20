@@ -1,11 +1,15 @@
-<script setup lang="ts">
-import {ref} from "vue";
+<script lang="ts" setup>
+import {onMounted, onBeforeUnmount, ref} from "vue";
 import {Channel, invoke} from "@tauri-apps/api/core";
 import {useRouter} from "vue-router";
-import { handleError } from "../lib/error";
-import ThirdPartyConnexionButton from "../Components/ThirdPartyConnexionButton.vue";
+import {handleError} from "../lib/error";
 import GmailIco from "../assets/images/gmail.svg";
 import ExternalLink from "../Components/ExternalLink.vue";
+import TabItem from "../Components/Tab/TabItem.vue";
+import TabContainer from "../Components/Tab/TabContainer.vue";
+import Button from "../Components/Button.vue";
+import Input from "../Components/Input.vue";
+import gsap from "gsap";
 
 const router = useRouter();
 
@@ -21,24 +25,26 @@ const email = ref("");
 const password = ref("");
 
 function TokenConnect() {
+
   invoke("token_connect", {
     server: server.value,
     port: port.value,
     email: email.value,
     token: token.value
-  }).then(value => { 
-    console.log("TokenConnect Result : ", value) 
+  }).then(value => {
+    console.log("TokenConnect Result : ", value)
     router.push("/")
   }).catch(handleError)
 }
 
 function PasswordConnect() {
+
   invoke("password_connect", {
     server: server.value,
     port: port.value,
     email: email.value,
     password: password.value
-  }).then(value => { 
+  }).then(value => {
     console.log("PasswordConnect Result : ", value)
     router.push("/")
   }).catch(handleError)
@@ -73,72 +79,69 @@ function GoogleConnect() {
   })
 }
 
+let ctx: gsap.Context | null = null;
+onMounted(() => ctx = gsap.context(() => {
+  gsap.fromTo(".fade-in", {
+    y: -50,
+    opacity: 0,
+  }, {
+    y: 0,
+    opacity: 1,
+    duration: 0.3,
+    stagger: 0.05,
+    ease: "power1.out",
+  })
+}));
+onBeforeUnmount(() => ctx?.revert())
+
 </script>
 
 <template>
   <section class="connection-view">
-    <Transition appear><h1>Choose your connection type</h1></Transition>
-    <div class="connection-type-selector">
-      <button @click="connectionType = 'password'" :class="{ active: connectionType === 'password' }">Login/Password</button>
-      <button @click="connectionType = 'token'" :class="{ active: connectionType === 'token' }">Token Based</button>
-      <ThirdPartyConnexionButton :ico="GmailIco" label="Gmail" @click="GoogleConnect" :class="{active: connectionType === 'thirdparty'}"/>
-    </div>
+    <section>
+      <h1 class="fade-in">Choose your connection type</h1>
+      <TabContainer class="fade-in">
+        <TabItem label="Login/Password" @click="connectionType = 'password'"></TabItem>
+        <TabItem label="OAuth2.0 Based" @click="connectionType = 'token'"></TabItem>
+        <TabItem :ico="GmailIco" label="Gmail" @click="GoogleConnect"/>
+      </TabContainer>
+    </section>
+    <section>
+      <h1 class="fade-in" v-if="connectionType === 'password' || connectionType==='token'">Connection Form</h1>
+      <div v-if="connectionType === 'password' || connectionType === 'token'" class="connection-form">
+        <Input class="fade-in" v-model="server" label="Server" placeholder="imap.google.com" tip="Your email provider IMAP server's address."
+               type="text"/>
+        <Input class="fade-in" v-model="port" :max=65535 :min=0 label="Port" placeholder="993" tip="Your email provider IMAP server's port."
+               type="number"/>
+        <Input class="fade-in" v-model="email" label="Email" placeholder="example@email.com" tip="The email you want to clean using this app."
+               type="text"/>
 
-    <h1 v-if="connectionType === 'password' || connectionType==='token'">Connection Form</h1>
+        <Input class="fade-in" v-if="connectionType === 'password'" v-model="password" label="Password" placeholder="pass***d"
+               tip="The password associated to the email." type="password"/>
+        <Input class="fade-in" v-else v-model="token" label="OAuth token" placeholder="toke***" tip="The OAuth2.0 token to authenticate to the IMAP server."
+               type="text"/>
 
-    <div v-if="connectionType === 'password'" class="connection-form">
-        <div class="field">
-          <label for="server-pass">Server: </label>
-          <input type="text" id="server-pass" v-model="server" placeholder="imap.gmail.com">
+        <div>
+          <Button class="fade-in" expand @click="connectionType === 'password' ? PasswordConnect() : TokenConnect()">Connect</Button>
+          <h3 class="fade-in" :style="{marginTop: 'var(--xs-spacing)'}">Please consider that IMAP must be enabled/authorised by your email provider for this application to work.<ExternalLink href="https://en.wikipedia.org/wiki/Internet_Message_Access_Protocol#Email_protocols">What's IMAP</ExternalLink></h3>
         </div>
-        <div class="field">
-          <label for="port-pass">Port: </label>
-          <input type="number" max="65535" id="port-pass" v-model="port">
-        </div>
-        <div class="field">
-          <label for="email-pass">Email: </label>
-          <input type="text" id="email-pass" v-model="email" placeholder="your@email.com">
-        </div>
-        <div class="field">
-          <label for="password">Password: </label>
-          <input type="password" id="password" v-model="password" placeholder="pass***d">
-        </div>
-        <button @click="PasswordConnect">Connect</button>
-  </div>
+      </div>
 
-    <div v-else-if="connectionType === 'token'" class="connection-form">
-    <div class="field">
-      <label for="server-token">Server: </label>
-      <input type="text" id="server-token" v-model="server" placeholder="imap.gmail.com">
-    </div>
-    <div class="field">
-      <label for="port-token">Port: </label>
-      <input type="number" max="65535" id="port-token" v-model="port">
-    </div>
-    <div class="field">
-      <label for="email-token">Email: </label>
-      <input type="text" id="email-token" v-model="email" placeholder="your@email.com">
-    </div>
-    <div class="field">
-      <label for="token">Token: </label>
-      <input type="password" id="token" v-model="token" placeholder="token***">
-    </div>
+      <div v-else-if="connectionType === 'thirdparty'" class="thirdPartyConnexion">
+        <h1>STATUS : {{ thirdPartyMessage }}</h1>
 
-    <button @click="TokenConnect">Connect</button>
-  </div>
+        <section>
+          <h2 v-if="thirdPartyLink === ''">You will shortly be redirected to an authentication page.</h2>
+          <div v-else>
+            <h2>Please open this link to continue :
+              <ExternalLink copybutton :href="thirdPartyLink">{{ thirdPartyLink }}</ExternalLink>
+            </h2>
+            <h3>Consider using another browser than firefox to open this link please.</h3>
+          </div>
+        </section>
 
-    <div v-else-if="connectionType === 'thirdparty'" class="thirdPartyConnexion">
-      <h1>STATUS : {{thirdPartyMessage}}</h1>
-
-      <section>
-        <h2 v-if="thirdPartyLink === ''">You will shortly be redirected to an authentication page.</h2>
-        <div v-else>
-          <h2>Please open this link to continue : <ExternalLink :href="thirdPartyLink">{{thirdPartyLink}}</ExternalLink></h2>
-          <h3>Consider using another browser than firefox to open this link please.</h3>
-        </div>
-      </section>
-
-    </div>
+      </div>
+    </section>
   </section>
 </template>
 
@@ -146,102 +149,38 @@ function GoogleConnect() {
 .connection-view {
   max-width: 800px;
   width: 100%;
-  margin: var(--s-spacing);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: start;
   justify-content: start;
-  gap: var(--s-spacing);
+  gap: var(--m-spacing);
   height: 100%;
   padding: var(--m-spacing);
+}
+
+.connection-view > section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-spacing);
+}
+
+.connection-view > section > *:not(h1) {
+  margin-left: var(--s-spacing);
 }
 
 .connection-view h1 {
   width: 100%;
   text-align: start;
-  text-transform: uppercase;
 }
 
-.connection-type-selector {
-  display: flex;
-  justify-content: center;
-  height: 5rem;
-  background: #f7f7f7;
-  border-radius: 8px;
-  box-shadow: 0px 0px 20px 0 rgba(0, 0, 0, 0.1);
-  width: 100%;
-}
-
-.connection-type-selector > * {
-  padding: var(--s-spacing);
-  margin: 0;  
-  background: #f7f7f7;
-  width: 50%;
-  height: 100%;
-  cursor: pointer;
-  font-size: var(--s-font-size);
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.connection-type-selector > *:focus {
-  outline: none;
-}
-
-.connection-type-selector button:first-child {
-  border-top-left-radius: var(--l-border-radius);
-  border-bottom-left-radius: var(--l-border-radius);
-  border-right: none;
-}
-
-.connection-type-selector button:last-child {
-  border-top-right-radius: var(--l-border-radius);
-  border-bottom-right-radius: var(--l-border-radius);
-}
-
-.connection-type-selector button.active {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
-}
-
-.connection-form {
-  padding: var(--m-spacing);
-  background: #f7f7f7;
-  border-radius: var(--l-border-radius);
-  box-shadow: 0px 0px 20px 0 hsla(0, 0%, 0%, 0.1);
-  border: none;
-  width: 100%;
-}
-
-.connection-form .field label {
-  display: block;
-  margin-bottom: var(--xs-spacing);
-  color: #333;
-}
-
-.connection-form .field input {
-  width: 100%;
-  padding: var(--s-spacing);
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box; /* important */
+.connection-form > * {
   margin-bottom: var(--s-spacing);
 }
 
-.connection-form button {
-  width: 100%;
-  padding: var(--s-spacing);
-  border: none;
-  border-radius: var(--s-border-radius);
-  background: #28a745;
-  color: white;
-  font-size: var(--s-font-size);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.connection-form button:hover {
-  background: #218838;
+.connection-form > *:last-child {
+  margin-bottom: 0;
+  margin-top: var(--m-spacing);
 }
 
 .thirdPartyConnexion {

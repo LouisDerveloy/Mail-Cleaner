@@ -1,20 +1,19 @@
-<script setup lang="ts">
-import { ref, shallowRef, computed } from "vue";
-import { invoke, Channel } from "@tauri-apps/api/core";
-import { confirm, message } from "@tauri-apps/plugin-dialog";
-import type { Ref } from "vue";
+<script lang="ts" setup>
+import type {Ref} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref, shallowRef} from "vue";
+import {Channel, invoke} from "@tauri-apps/api/core";
+import {confirm, message} from "@tauri-apps/plugin-dialog";
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
-import { RecycleScroller } from 'vue-virtual-scroller'
-import { handleError } from "../lib/error";
+import {RecycleScroller} from 'vue-virtual-scroller'
+import {handleError} from "../lib/error";
 import noResultsImage from "/src/assets/images/no-results.png";
 import searchingImage from "/src/assets/images/searching.png";
-import { useSearchStore } from "../stores/search.ts";
+import {useSearchStore} from "../stores/search.ts";
 import AdvanceSearch from "../Components/advanceSearch.vue"
 import SearchBar from "../Components/SearchBar.vue";
 import Button from "../Components/Button.vue";
 import {useRouter} from "vue-router";
 import gsap from "gsap";
-import {onMounted, onBeforeUnmount} from "vue";
 
 const router = useRouter();
 
@@ -39,7 +38,7 @@ const searchStore = useSearchStore()
 let senders: Ref<DisplaySender[]> = shallowRef([])
 let isProcessing = ref(false)
 let searching = ref(false)
-let progress = ref({ current: 0, total: 0 });
+let progress = ref({current: 0, total: 0});
 
 const selectedCount = computed(() => {
   return senders.value.filter(s => s.selected).length
@@ -49,7 +48,7 @@ function start_search() {
   isProcessing.value = true
   searching.value = true
   senders.value = []
-  progress.value = { current: 0, total: 0 };
+  progress.value = {current: 0, total: 0};
   const channel = new Channel()
 
   channel.onmessage = (response: unknown) => {
@@ -78,8 +77,8 @@ function start_search() {
     }
   });
 
-  invoke<Sender[]>("get_list", { retChannel: channel, query: search }).then((result) => {
-    const displaySenders: DisplaySender[] = result.map(s => ({ ...s, selected: false }))
+  invoke<Sender[]>("get_list", {retChannel: channel, query: search}).then((result) => {
+    const displaySenders: DisplaySender[] = result.map(s => ({...s, selected: false}))
     senders.value = displaySenders;
     isProcessing.value = false
     searching.value = false
@@ -92,12 +91,12 @@ function start_search() {
 
 function onSelect(id: number) {
   console.log("selected: ", id)
-  senders.value = senders.value.map(s => s.id === id ? { ...s, selected: true } : s)
+  senders.value = senders.value.map(s => s.id === id ? {...s, selected: true} : s)
 }
 
 function onUnselect(id: number) {
   console.log("unselected: ", id)
-  senders.value = senders.value.map(s => s.id === id ? { ...s, selected: false } : s)
+  senders.value = senders.value.map(s => s.id === id ? {...s, selected: false} : s)
 }
 
 async function selectAll() {
@@ -106,7 +105,7 @@ async function selectAll() {
     kind: "info",
   });
   if (result) {
-    senders.value = senders.value.map(s => ({ ...s, selected: true }));
+    senders.value = senders.value.map(s => ({...s, selected: true}));
   }
 }
 
@@ -116,13 +115,13 @@ async function unselectAll() {
     kind: "warning",
   });
   if (result) {
-    senders.value = senders.value.map(s => ({ ...s, selected: false }));
+    senders.value = senders.value.map(s => ({...s, selected: false}));
   }
 }
 
 async function deleteSelected() {
   if (selectedCount.value === 0) {
-    await message("There are no emails selected to delete.", { title: "Delete Senders", kind: "info" });
+    await message("There are no emails selected to delete.", {title: "Delete Senders", kind: "info"});
     return;
   }
 
@@ -133,9 +132,9 @@ async function deleteSelected() {
 
   if (confirmed) {
     const idsToDelete = senders.value.filter(s => s.selected).map(s => s.id);
-    
+
     isProcessing.value = true;
-    progress.value = { current: 0, total: 0 };
+    progress.value = {current: 0, total: 0};
 
     const channel = new Channel();
 
@@ -144,7 +143,7 @@ async function deleteSelected() {
     };
 
     try {
-      await invoke("delete_senders", { senderIds: idsToDelete, retChannel: channel });
+      await invoke("delete_senders", {senderIds: idsToDelete, retChannel: channel});
       senders.value = senders.value.filter(s => !s.selected);
     } catch (err) {
       await handleError(err);
@@ -165,20 +164,18 @@ function toggleAdvanceSearch() {
 }
 
 let ctx: gsap.Context | null = null
-onMounted(() => {
-  ctx = gsap.context(() => {
-    gsap.fromTo('.fade-in', {
-      opacity: 0,
-      y: "-50",
-    }, {
-      opacity: 1,
-      y: 0,
-      duration: .8,
-      stagger: .2,
-      ease: "bounce.out"
-    })
-  });
-});
+onMounted(() => ctx = gsap.context(() => {
+  gsap.fromTo('.fade-in', {
+    opacity: 0,
+    y: "-50",
+  }, {
+    opacity: 1,
+    y: 0,
+    duration: .8,
+    stagger: .2,
+    ease: "bounce.out"
+  })
+}));
 onBeforeUnmount(() => ctx?.revert())
 
 </script>
@@ -186,14 +183,14 @@ onBeforeUnmount(() => ctx?.revert())
   <section class="analyse-view">
     <section class="controls fade-in">
       <div class="search-container">
-        <SearchBar v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
-        <Button @click="toggleAdvanceSearch" :disabled="isProcessing">Advance Search</Button>
+        <SearchBar v-model="searchStore.text" :disabled="isProcessing" @search="start_search"/>
+        <Button :disabled="isProcessing" @click="toggleAdvanceSearch">Advance Search</Button>
       </div>
       <Button @click="router.push('user/connexion')">Connect</Button>
-      <Button @click="clearList" :disabled="isProcessing || senders.length === 0">Clear List</Button>
+      <Button :disabled="isProcessing || senders.length === 0" @click="clearList">Clear List</Button>
       <Button @click="selectAll">Select All</Button>
       <Button @click="unselectAll">Unselect All</Button>
-      <Button @click="deleteSelected" :disabled="selectedCount === 0" variant="red">Delete Selected</Button>
+      <Button :disabled="selectedCount === 0" variant="red" @click="deleteSelected">Delete Selected</Button>
     </section>
     <section class="table">
       <div class="header">
@@ -201,37 +198,37 @@ onBeforeUnmount(() => ctx?.revert())
         <span class="fade-in">Occurrence</span>
       </div>
       <RecycleScroller
-        class="SenderList"
-        :items="senders"
-        :item-size="50"
-        key-field="id"
-        v-slot="{ item }"
-        v-if="senders.length > 0"
-    >
-      <div class="sender-item">
-        <button v-if="!item.selected" class="select-button" @click="onSelect(item.id)">Select</button>
-        <button v-else class="unselect-button" @click="onUnselect(item.id)">Unselect</button>
-        <span>{{ item.email }}</span>
-        <span class="occurrence">{{ item.occurrence }}</span>
+          v-if="senders.length > 0"
+          v-slot="{ item }"
+          :item-size="50"
+          :items="senders"
+          class="SenderList"
+          key-field="id"
+      >
+        <div class="sender-item">
+          <Button v-if="!item.selected" size="small" @click="onSelect(item.id)">Select</Button>
+          <Button v-else size="small" variant="red" @click="onUnselect(item.id)">Unselect</Button>
+          <span>{{ item.email }}</span>
+          <span class="occurrence">{{ item.occurrence }}</span>
+        </div>
+      </RecycleScroller>
+      <div v-else-if="!searching" class="info">
+        <img :src="noResultsImage" alt="No results" class="cat-image fade-in">
+        <span class="fade-in">I can't find any mails meow. Maybe you should start a search.</span>
+        <SearchBar v-model="searchStore.text" :disabled="isProcessing" class="fade-in" @search="start_search"/>
       </div>
-    </RecycleScroller>
-    <div class="info" v-else-if="!searching">
-      <img :src="noResultsImage" alt="No results" class="cat-image fade-in">
-      <span class="fade-in">I can't find any mails meow. Maybe you should start a search.</span>
-      <SearchBar class="fade-in" v-model="searchStore.text" @search="start_search" :disabled="isProcessing" />
-    </div>
-    <div class="info" v-else>
-      <img :src="searchingImage" alt="Searching..." class="cat-image fade-in">
-      <span class="fade-in">I'm searching for your emails... I hope i will get some treats for that.</span>
-    </div>
+      <div v-else class="info">
+        <img :src="searchingImage" alt="Searching..." class="cat-image fade-in">
+        <span class="fade-in">I'm searching for your emails... I hope i will get some treats for that.</span>
+      </div>
     </section>
-    <div class="progress-container" v-if="isProcessing || progress.total > 0">
-      <progress :value="progress.current" :max="progress.total" />
+    <div v-if="isProcessing || progress.total > 0" class="progress-container">
+      <progress :max="progress.total" :value="progress.current"/>
       <span v-if="progress.current === 0 && isProcessing">Loading...</span>
       <span v-else>{{ progress.current }} / {{ progress.total }}</span>
     </div>
   </section>
-  <AdvanceSearch :onSearch="start_search" />
+  <AdvanceSearch :onSearch="start_search"/>
 </template>
 
 <style scoped>
