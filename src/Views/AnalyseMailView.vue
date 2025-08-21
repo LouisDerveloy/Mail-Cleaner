@@ -1,3 +1,10 @@
+<!--
+  - Copyright (c) 2025. Louis DERVELOY (https://github.com/LouisDerveloy/)
+  - Licensed under the PolyForm Noncommercial License 1.0.0
+  - SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+  - See the LICENSE file in the project root for details.
+  -->
+
 <script lang="ts" setup>
 import type {Ref} from "vue";
 import {computed, onBeforeUnmount, onMounted, ref, shallowRef} from "vue";
@@ -190,7 +197,7 @@ onBeforeUnmount(() => ctx?.revert())
       <Button :disabled="isProcessing || senders.length === 0" @click="clearList">Clear List</Button>
       <Button @click="selectAll">Select All</Button>
       <Button @click="unselectAll">Unselect All</Button>
-      <Button :disabled="selectedCount === 0" variant="red" @click="deleteSelected">Delete Selected</Button>
+      <Button :disabled="selectedCount === 0" variant="red" @click="deleteSelected">Delete</Button>
     </section>
     <section class="table">
       <div class="header">
