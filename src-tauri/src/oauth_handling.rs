@@ -60,7 +60,7 @@ pub enum UpdateType {
 fn parse_client_secret_json<P: AsRef<Path>>(file_uri: P) -> serde_json::Result<Value> {
     let json = read_to_string(file_uri).expect("Couldn't read the file");
 
-    println!("JSON: \n{}", json.trim());
+    log::debug!("JSON: \n{}", json.trim());
 
     serde_json::from_str::<Value>(&json.trim())
 }
@@ -74,7 +74,7 @@ pub async fn get_token(
     if !(fs::exists(client_secret_path.clone())
         .expect("Coudn't verify the existence of the credentials."))
     {
-        println!("Couldn't find the credentials at {}", client_secret_path);
+        log::debug!("Couldn't find the credentials at {}", client_secret_path);
         Err(FailureType::UnknownError("No client credentials".into()))
     } else {
         let client_secret = parse_client_secret_json(client_secret_path)
@@ -192,8 +192,8 @@ pub async fn get_token(
             .map_err(|e| FailureType::ChannelError("Couldn't send authentication link".into()))?;
 
         webbrowser::open(&auth_url.as_str()).unwrap_or_else(|e| {
-            println!("Couldn't open the URL: {}. {}", auth_url, e);
-            println!(
+            log::debug!("Couldn't open the URL: {}. {}", auth_url, e);
+            log::debug!(
                 "Please to c ontinue the authentication process please manually go to the url."
             )
         }); // Try to automatically open the url in the user's default browser
@@ -223,9 +223,12 @@ pub async fn get_token(
             .map_err(|e| FailureType::ChannelError("Checking csrf".into()))?;
 
         if callback.state.is_none() {
-            eprintln!("Error: state CSRF wasn't returned by the server");
-            eprintln!("Please try again. If the problem stays, contact the developer.");
-            std::process::exit(1);
+            log::error!("Error: state CSRF wasn't returned by the server");
+            log::error!("Please try again. If the problem stays, contact the developer.");
+
+            return Err(FailureType::UnknownError(
+                "CSRF wasn't returned by the server".into(),
+            ));
         }
 
         if csrf_token.into_secret()
@@ -233,9 +236,9 @@ pub async fn get_token(
                 .state
                 .expect("CSRF missing from the google callback.")
         {
-            eprintln!("Error: state CSRF doesn't match");
-            eprintln!("Please try again. If the problem stays, contact the developer.");
-            std::process::exit(1);
+            log::error!("Error: state CSRF doesn't match");
+            log::error!("Please try again. If the problem stays, contact the developer.");
+            return Err(FailureType::UnknownError("CSRF doesn't match".into()));
         }
 
         // Retrieve access_token
@@ -260,9 +263,9 @@ pub async fn get_token(
         let final_tokens = match token_result {
             Ok(token) => token,
             Err(e) => {
-                eprintln!("Error: {}", e);
-                eprintln!("Couldn't exchange code. For an authorisation token");
-                std::process::exit(1);
+                log::error!("Error: {}", e);
+                log::error!("Couldn't exchange code. For an authorisation token");
+                return Err(FailureType::UnknownError(format!("Error: {}", e)));
             }
         };
 
@@ -279,7 +282,7 @@ pub async fn get_token(
             .await
             .expect("Couldn't deserialize user info");
 
-        println!("Google User's info : {:?}", userinfo);
+        log::debug!("Google User's info : {:?}", userinfo);
 
         Ok((
             access_token,

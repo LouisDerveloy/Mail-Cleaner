@@ -122,8 +122,8 @@ impl EmailProvider for EmailAccessProvider {
         // time benchmark
         let mut fetch_t: Vec<Duration> = Vec::new();
         let mut treatment_t: Vec<Duration> = Vec::new();
-
-        println!("Get inbox senders' address from query: {}", query);
+        
+        log::debug!("Fetching inbox senders' address from query: {}", query);
 
         // Search for all the ids of emails which match the request <BODY unsubscribe> that mean the body has to contain the word unsubscribe
         let search_t = Instant::now();
@@ -134,7 +134,7 @@ impl EmailProvider for EmailAccessProvider {
         let search_t = search_t.elapsed();
 
         let total_emails = search_result.len() as u32;
-        println!("Found {} emails matching the request.", total_emails);
+        log::debug!("Found {} emails matching the request.", total_emails);
 
         let mut senders_map: HashMap<String, Sender> = HashMap::new();
 
@@ -214,43 +214,43 @@ impl EmailProvider for EmailAccessProvider {
             + serialize_t
             + fetch_t.iter().sum::<Duration>()
             + treatment_t.iter().sum::<Duration>();
-        println!("Total time elapsed: {}", total_time.as_millis().to_string());
+        log::debug!("Total time elapsed: {}", total_time.as_millis().to_string());
 
-        println!("Search request time: {}", search_t.as_millis().to_string());
+        log::debug!("Search request time: {}", search_t.as_millis().to_string());
 
         let total_fetch: Duration = fetch_t.iter().sum::<Duration>();
         let mean_fetch = total_fetch / fetch_t.len() as u32;
-        println!("Fetch:");
-        println!(
+        log::debug!("Fetch:");
+        log::debug!(
             "  Mean time elapsed: {}",
             mean_fetch.as_millis().to_string()
         );
-        println!(
+        log::debug!(
             "  Total time elapsed: {}",
             total_fetch.as_millis().to_string()
         );
-        println!(
+        log::debug!(
             "  Max: {}",
             fetch_t.iter().max().unwrap().as_millis().to_string()
         );
 
         let total_treatment: Duration = treatment_t.iter().sum::<Duration>();
         let mean_treatment = total_treatment / treatment_t.len() as u32;
-        println!("Treatment:");
-        println!(
+        log::debug!("Treatment:");
+        log::debug!(
             "  Mean time elapsed: {}",
             mean_treatment.as_millis().to_string()
         );
-        println!(
+        log::debug!(
             "  Total time elapsed: {}",
             total_treatment.as_millis().to_string()
         );
-        println!(
+        log::debug!(
             "  Max: {}",
             treatment_t.iter().max().unwrap().as_millis().to_string()
         );
 
-        println!("Serialize time : {}", serialize_t.as_millis().to_string());
+        log::debug!("Serialize time : {}", serialize_t.as_millis().to_string());
 
         Ok(final_senders)
     }
@@ -267,7 +267,7 @@ impl EmailProvider for EmailAccessProvider {
         };
 
         for sender_email in &sender_emails {
-            println!("Searching emails from: {}", sender_email);
+            log::debug!("Searching emails from: {}", sender_email);
 
             let search_criteria = format!("FROM \"{}\"", sender_email);
             let messages = self
@@ -284,7 +284,7 @@ impl EmailProvider for EmailAccessProvider {
         }
 
         if uids_to_delete.is_empty() {
-            println!("No emails to delete.");
+            log::debug!("No emails to delete.");
             return Ok(());
         }
 
@@ -299,7 +299,7 @@ impl EmailProvider for EmailAccessProvider {
                 .join(",");
 
             if !sequence_set.is_empty() {
-                println!("Marking {} emails for deletion.", chunk.len());
+                log::debug!("Marking {} emails for deletion.", chunk.len());
                 self.imap_session
                     .store(&sequence_set, "+FLAGS (\\Deleted)")
                     .map_err(|e| FailureType::UnknownError(e.to_string()))?;
@@ -309,11 +309,11 @@ impl EmailProvider for EmailAccessProvider {
             }
         }
 
-        println!("Expunging marked emails.");
+        log::debug!("Expunging marked emails.");
         self.imap_session
             .expunge()
             .map_err(|e| FailureType::UnknownError(e.to_string()))?;
-        println!("Successfully expunged emails.");
+        log::debug!("Successfully expunged emails.");
 
         // Ensure final progress is sent.
         progress.current = progress.total;

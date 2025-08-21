@@ -61,14 +61,14 @@ async fn test(state: State<'_, Mutex<AppState>>, app_handle: AppHandle) -> Comma
     };
 
     if guard.email_session.is_none() {
-        println!("email session is none");
-        println!("Please provide an email session");
+        log::debug!("email session is none");
+        log::debug!("Please provide an email session");
 
         app_handle
             .emit("open-login-page", "")
             .expect("failed to emit open-login-page event in test command.");
     } else {
-        println!("email session is not none");
+        log::debug!("email session is not none");
     }
 
     Ok(())
@@ -174,7 +174,7 @@ async fn gmail_oauth_request(
 
     match state.lock() {
         Ok(mut _state) => {
-            _state.refresh_token = refresh_token;
+            _state.tokens = refresh_token;
         }
         Err(_) => return Err(FailureType::FailedToLockState),
     }
@@ -187,17 +187,18 @@ struct AppState {
     email_session: Option<EmailAccessProvider>,
     mail_server: Option<MailServer>,
     emails_list: Option<Vec<Sender>>,
-    refresh_token: Option<RefreshToken>,
+    tokens: Option<RefreshToken>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_log::Builder::new().build())
         .setup(|app| {
             app.manage(Mutex::new(AppState::default()));
             Ok(())
         })
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
