@@ -4,8 +4,6 @@ use std::fs;
 use std::path::Path;
 use std::{collections::HashMap, fs::read_to_string};
 
-use oauth2;
-use webbrowser;
 
 use http_body_util::Full;
 use hyper::{body::Bytes, server::conn::http1, service::service_fn, Request, Response};
@@ -18,10 +16,8 @@ use tokio::net::TcpListener;
 use tokio::sync::{oneshot, Mutex};
 use tokio::time::{timeout, Duration};
 
-use reqwest;
 
 use crate::utils::{CommandResult, FailureType};
-use serde::de::IntoDeserializer;
 use tauri::ipc::Channel;
 
 // Struct to represent client_secret.json
@@ -62,7 +58,7 @@ fn parse_client_secret_json<P: AsRef<Path>>(file_uri: P) -> serde_json::Result<V
 
     log::debug!("JSON: \n{}", json.trim());
 
-    serde_json::from_str::<Value>(&json.trim())
+    serde_json::from_str::<Value>(json.trim())
 }
 
 pub async fn get_token(
@@ -191,7 +187,7 @@ pub async fn get_token(
             })
             .map_err(|e| FailureType::ChannelError("Couldn't send authentication link".into()))?;
 
-        webbrowser::open(&auth_url.as_str()).unwrap_or_else(|e| {
+        webbrowser::open(auth_url.as_str()).unwrap_or_else(|e| {
             log::debug!("Couldn't open the URL: {}. {}", auth_url, e);
             log::debug!(
                 "Please to c ontinue the authentication process please manually go to the url."
@@ -287,8 +283,7 @@ pub async fn get_token(
         Ok((
             access_token,
             final_tokens
-                .refresh_token()
-                .and_then(|refresh_token: &RefreshToken| Some(refresh_token.clone())),
+                .refresh_token().map(|refresh_token: &RefreshToken| refresh_token.clone()),
             userinfo.email,
         ))
     }

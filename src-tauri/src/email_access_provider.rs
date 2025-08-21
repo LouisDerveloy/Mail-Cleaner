@@ -1,10 +1,8 @@
-use crate::utils::{CommandResult, FailureType, Search};
-use imap;
+use crate::utils::{CommandResult, FailureType};
 use imap::{Connection, Session};
 use serde::Serialize;
 use std::cmp::min;
 use std::collections::HashMap;
-use std::fmt::{format, Debug, Display};
 use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
 
@@ -214,24 +212,24 @@ impl EmailProvider for EmailAccessProvider {
             + serialize_t
             + fetch_t.iter().sum::<Duration>()
             + treatment_t.iter().sum::<Duration>();
-        log::debug!("Total time elapsed: {}", total_time.as_millis().to_string());
+        log::debug!("Total time elapsed: {}", total_time.as_millis());
 
-        log::debug!("Search request time: {}", search_t.as_millis().to_string());
+        log::debug!("Search request time: {}", search_t.as_millis());
 
         let total_fetch: Duration = fetch_t.iter().sum::<Duration>();
         let mean_fetch = total_fetch / fetch_t.len() as u32;
         log::debug!("Fetch:");
         log::debug!(
             "  Mean time elapsed: {}",
-            mean_fetch.as_millis().to_string()
+            mean_fetch.as_millis()
         );
         log::debug!(
             "  Total time elapsed: {}",
-            total_fetch.as_millis().to_string()
+            total_fetch.as_millis()
         );
         log::debug!(
             "  Max: {}",
-            fetch_t.iter().max().unwrap().as_millis().to_string()
+            fetch_t.iter().max().unwrap().as_millis()
         );
 
         let total_treatment: Duration = treatment_t.iter().sum::<Duration>();
@@ -239,18 +237,18 @@ impl EmailProvider for EmailAccessProvider {
         log::debug!("Treatment:");
         log::debug!(
             "  Mean time elapsed: {}",
-            mean_treatment.as_millis().to_string()
+            mean_treatment.as_millis()
         );
         log::debug!(
             "  Total time elapsed: {}",
-            total_treatment.as_millis().to_string()
+            total_treatment.as_millis()
         );
         log::debug!(
             "  Max: {}",
-            treatment_t.iter().max().unwrap().as_millis().to_string()
+            treatment_t.iter().max().unwrap().as_millis()
         );
 
-        log::debug!("Serialize time : {}", serialize_t.as_millis().to_string());
+        log::debug!("Serialize time : {}", serialize_t.as_millis());
 
         Ok(final_senders)
     }
