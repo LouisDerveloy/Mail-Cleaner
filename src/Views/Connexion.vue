@@ -3,13 +3,15 @@ import {onMounted, onBeforeUnmount, ref} from "vue";
 import {Channel, invoke} from "@tauri-apps/api/core";
 import {useRouter} from "vue-router";
 import {handleError} from "../lib/error";
-import GmailIco from "../assets/images/gmail.svg";
 import ExternalLink from "../Components/ExternalLink.vue";
 import TabItem from "../Components/Tab/TabItem.vue";
 import TabContainer from "../Components/Tab/TabContainer.vue";
 import Button from "../Components/Button.vue";
 import Input from "../Components/Input.vue";
 import gsap from "gsap";
+
+import GmailIco from "../assets/images/gmail.svg";
+import LeftArrow from "../assets/images/arrow-left.svg";
 
 const router = useRouter();
 
@@ -98,6 +100,7 @@ onBeforeUnmount(() => ctx?.revert())
 
 <template>
   <section class="connection-view">
+    <Button size="small" :icon="LeftArrow" icon-alt="Left Arrow icon" @click="router.push('/')">Go back</Button>
     <section>
       <h1 class="fade-in">Choose your connection type</h1>
       <TabContainer class="fade-in">
@@ -122,7 +125,7 @@ onBeforeUnmount(() => ctx?.revert())
                type="text"/>
 
         <div>
-          <Button class="fade-in" expand @click="connectionType === 'password' ? PasswordConnect() : TokenConnect()">Connect</Button>
+          <Button class="fade-in" expand @click="connectionType === 'password' ? PasswordConnect() : TokenConnect()">Sign in</Button>
           <h3 class="fade-in" :style="{marginTop: 'var(--xs-spacing)'}">Please consider that IMAP must be enabled/authorised by your email provider for this application to work.<ExternalLink href="https://en.wikipedia.org/wiki/Internet_Message_Access_Protocol#Email_protocols">What's IMAP</ExternalLink></h3>
         </div>
       </div>
@@ -153,9 +156,8 @@ onBeforeUnmount(() => ctx?.revert())
   flex-direction: column;
   align-items: start;
   justify-content: start;
-  gap: var(--m-spacing);
-  height: 100%;
-  padding: var(--m-spacing);
+  gap: var(--s-spacing);
+  padding: var(--s-spacing)  var(--m-spacing);
 }
 
 .connection-view > section {

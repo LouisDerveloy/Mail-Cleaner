@@ -186,7 +186,7 @@ onBeforeUnmount(() => ctx?.revert())
         <SearchBar v-model="searchStore.text" :disabled="isProcessing" @search="start_search"/>
         <Button :disabled="isProcessing" @click="toggleAdvanceSearch">Advance Search</Button>
       </div>
-      <Button @click="router.push('user/connexion')">Connect</Button>
+      <Button @click="router.push('user/connexion')">Sign in</Button>
       <Button :disabled="isProcessing || senders.length === 0" @click="clearList">Clear List</Button>
       <Button @click="selectAll">Select All</Button>
       <Button @click="unselectAll">Unselect All</Button>
@@ -294,6 +294,7 @@ onBeforeUnmount(() => ctx?.revert())
 
 .SenderList {
   overflow-y: scroll;
+  scroll-behavior: smooth;
 }
 
 .sender-item {

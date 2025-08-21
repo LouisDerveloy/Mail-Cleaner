@@ -82,8 +82,8 @@ onBeforeUnmount(() => ctx?.revert())
 <template>
   <button ref="buttonRef" :class="[props.variant, {'expand': props.expand}, {'disabled': props.disabled}, props.size]"
           :disabled="props.disabled" @click="onClick">
-    <span ref="slot1"><slot/><img v-if="icon !== ''" :alt="iconAlt" :src="icon"></span>
-    <span ref="slot2"><slot/><img v-if="icon !== ''" :alt="iconAlt" :src="icon"></span>
+    <span ref="slot1"><img v-if="icon !== ''" :alt="iconAlt" :src="icon"><slot/></span>
+    <span ref="slot2"><img v-if="icon !== ''" :alt="iconAlt" :src="icon"><slot/></span>
   </button>
 </template>
 
@@ -97,6 +97,7 @@ button {
   text-overflow: ellipsis;
   cursor: pointer;
   overflow: hidden;
+  letter-spacing: 1px;
 }
 
 
@@ -104,7 +105,6 @@ button.small {
   min-width: 32px;
   border-radius: var(--s-border-radius);
   padding: var(--xs-spacing) var(--s-spacing);
-  letter-spacing: 1px;
   font-size: var(--s-font-size);
 }
 
@@ -116,7 +116,6 @@ button.medium {
   min-width: 100px;
   border-radius: var(--m-border-radius);
   padding: var(--s-spacing) var(--m-spacing);
-  letter-spacing: 3px;
   font-size: var(--s-font-size);
 }
 
@@ -128,7 +127,6 @@ button.large {
   min-width: 200px;
   border-radius: var(--l-border-radius);
   padding: var(--m-spacing) var(--l-spacing);
-  letter-spacing: 3px;
   font-size: var(--l-font-size);
 }
 
