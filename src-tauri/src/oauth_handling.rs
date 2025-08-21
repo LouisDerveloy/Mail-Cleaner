@@ -83,7 +83,7 @@ pub async fn get_token(
                 update_type: UpdateType::Status,
                 content: "Starting callback server".into(),
             })
-            .map_err(|e| FailureType::ChannelError("Starting callback server".into()))?;
+            .map_err(|_e| FailureType::ChannelError("Starting callback server".into()))?;
 
         // Create listener for TCP connexion
         let addr = net::SocketAddr::from(([127, 0, 0, 1], 0));
@@ -137,7 +137,7 @@ pub async fn get_token(
                 update_type: UpdateType::Status,
                 content: "Creating OAuth client".into(),
             })
-            .map_err(|e| FailureType::ChannelError("Creating OAuth client".into()))?;
+            .map_err(|_e| FailureType::ChannelError("Creating OAuth client".into()))?;
 
         // OAuth authentication
         let client = oauth2::basic::BasicClient::new(get_client_id(&client_secret))
@@ -152,7 +152,7 @@ pub async fn get_token(
                 update_type: UpdateType::Status,
                 content: "Generating PKCE challenge".into(),
             })
-            .map_err(|e| FailureType::ChannelError("Generating PKCE challenge".into()))?;
+            .map_err(|_e| FailureType::ChannelError("Generating PKCE challenge".into()))?;
 
         let (pkce_challenge, pkce_verifier) = oauth2::PkceCodeChallenge::new_random_sha256();
 
@@ -162,7 +162,7 @@ pub async fn get_token(
                 update_type: UpdateType::Status,
                 content: "Generating authentication url and csrf token".into(),
             })
-            .map_err(|e| {
+            .map_err(|_e| {
                 FailureType::ChannelError("Generating authentication url and csrf token".into())
             })?;
 
@@ -185,7 +185,7 @@ pub async fn get_token(
                 update_type: UpdateType::Link,
                 content: auth_url.clone().into(),
             })
-            .map_err(|e| FailureType::ChannelError("Couldn't send authentication link".into()))?;
+            .map_err(|_e| FailureType::ChannelError("Couldn't send authentication link".into()))?;
 
         webbrowser::open(auth_url.as_str()).unwrap_or_else(|e| {
             log::debug!("Couldn't open the URL: {}. {}", auth_url, e);
@@ -200,7 +200,7 @@ pub async fn get_token(
                 update_type: UpdateType::Status,
                 content: "Waiting for callback".into(),
             })
-            .map_err(|e| FailureType::ChannelError("Waiting for callback".into()))?;
+            .map_err(|_e| FailureType::ChannelError("Waiting for callback".into()))?;
 
         let callback = timeout(Duration::from_secs(600), rx)
             .await
@@ -216,7 +216,7 @@ pub async fn get_token(
                 update_type: UpdateType::Status,
                 content: "Checking csrf".into(),
             })
-            .map_err(|e| FailureType::ChannelError("Checking csrf".into()))?;
+            .map_err(|_e| FailureType::ChannelError("Checking csrf".into()))?;
 
         if callback.state.is_none() {
             log::error!("Error: state CSRF wasn't returned by the server");
@@ -243,7 +243,7 @@ pub async fn get_token(
                 update_type: UpdateType::Status,
                 content: "Retrieving access token".into(),
             })
-            .map_err(|e| FailureType::ChannelError("Retrieving access token".into()))?;
+            .map_err(|_e| FailureType::ChannelError("Retrieving access token".into()))?;
 
         let http_client = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
@@ -283,7 +283,7 @@ pub async fn get_token(
         Ok((
             access_token,
             final_tokens
-                .refresh_token().map(|refresh_token: &RefreshToken| refresh_token.clone()),
+                .refresh_token().cloned(),
             userinfo.email,
         ))
     }

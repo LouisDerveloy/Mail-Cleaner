@@ -10,8 +10,7 @@ import { message } from "@tauri-apps/plugin-dialog";
 // This mirrors the FailureType enum in src-tauri/src/utils.rs
 // when serialized by serde.
 type FailureType =
-  | 'NoSenderFound'
-  | { ImapConnectionError: string }
+  { ImapConnectionError: string }
   | 'FailedToLockState'
   | 'NotConnected'
   | { UnknownError: string }
@@ -24,8 +23,6 @@ function getErrorMessage(error: unknown): string {
 
     if (typeof failure === 'string') {
         switch (failure) {
-            case 'NoSenderFound':
-                return "No senders found matching your search criteria.";
             case 'FailedToLockState':
                 return "An internal application error occurred. Please try restarting the application if the problem persists.";
             case 'NotConnected':

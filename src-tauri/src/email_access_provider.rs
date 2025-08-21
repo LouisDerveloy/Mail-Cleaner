@@ -212,43 +212,43 @@ impl EmailProvider for EmailAccessProvider {
             + serialize_t
             + fetch_t.iter().sum::<Duration>()
             + treatment_t.iter().sum::<Duration>();
-        log::debug!("Total time elapsed: {}", total_time.as_millis());
+        log::trace!("Total time elapsed: {}", total_time.as_millis());
 
-        log::debug!("Search request time: {}", search_t.as_millis());
+        log::trace!("Search request time: {}", search_t.as_millis());
 
         let total_fetch: Duration = fetch_t.iter().sum::<Duration>();
         let mean_fetch = total_fetch / fetch_t.len() as u32;
-        log::debug!("Fetch:");
-        log::debug!(
+        log::trace!("Fetch:");
+        log::trace!(
             "  Mean time elapsed: {}",
             mean_fetch.as_millis()
         );
-        log::debug!(
+        log::trace!(
             "  Total time elapsed: {}",
             total_fetch.as_millis()
         );
-        log::debug!(
+        log::trace!(
             "  Max: {}",
             fetch_t.iter().max().unwrap().as_millis()
         );
 
         let total_treatment: Duration = treatment_t.iter().sum::<Duration>();
         let mean_treatment = total_treatment / treatment_t.len() as u32;
-        log::debug!("Treatment:");
-        log::debug!(
+        log::trace!("Treatment:");
+        log::trace!(
             "  Mean time elapsed: {}",
             mean_treatment.as_millis()
         );
-        log::debug!(
+        log::trace!(
             "  Total time elapsed: {}",
             total_treatment.as_millis()
         );
-        log::debug!(
+        log::trace!(
             "  Max: {}",
             treatment_t.iter().max().unwrap().as_millis()
         );
 
-        log::debug!("Serialize time : {}", serialize_t.as_millis());
+        log::trace!("Serialize time : {}", serialize_t.as_millis());
 
         Ok(final_senders)
     }
