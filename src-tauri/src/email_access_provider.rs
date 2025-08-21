@@ -120,7 +120,7 @@ impl EmailProvider for EmailAccessProvider {
         // time benchmark
         let mut fetch_t: Vec<Duration> = Vec::new();
         let mut treatment_t: Vec<Duration> = Vec::new();
-        
+
         log::debug!("Fetching inbox senders' address from query: {}", query);
 
         // Search for all the ids of emails which match the request <BODY unsubscribe> that mean the body has to contain the word unsubscribe
@@ -219,34 +219,16 @@ impl EmailProvider for EmailAccessProvider {
         let total_fetch: Duration = fetch_t.iter().sum::<Duration>();
         let mean_fetch = total_fetch / fetch_t.len() as u32;
         log::trace!("Fetch:");
-        log::trace!(
-            "  Mean time elapsed: {}",
-            mean_fetch.as_millis()
-        );
-        log::trace!(
-            "  Total time elapsed: {}",
-            total_fetch.as_millis()
-        );
-        log::trace!(
-            "  Max: {}",
-            fetch_t.iter().max().unwrap().as_millis()
-        );
+        log::trace!("  Mean time elapsed: {}", mean_fetch.as_millis());
+        log::trace!("  Total time elapsed: {}", total_fetch.as_millis());
+        log::trace!("  Max: {}", fetch_t.iter().max().unwrap().as_millis());
 
         let total_treatment: Duration = treatment_t.iter().sum::<Duration>();
         let mean_treatment = total_treatment / treatment_t.len() as u32;
         log::trace!("Treatment:");
-        log::trace!(
-            "  Mean time elapsed: {}",
-            mean_treatment.as_millis()
-        );
-        log::trace!(
-            "  Total time elapsed: {}",
-            total_treatment.as_millis()
-        );
-        log::trace!(
-            "  Max: {}",
-            treatment_t.iter().max().unwrap().as_millis()
-        );
+        log::trace!("  Mean time elapsed: {}", mean_treatment.as_millis());
+        log::trace!("  Total time elapsed: {}", total_treatment.as_millis());
+        log::trace!("  Max: {}", treatment_t.iter().max().unwrap().as_millis());
 
         log::trace!("Serialize time : {}", serialize_t.as_millis());
 

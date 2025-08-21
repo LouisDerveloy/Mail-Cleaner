@@ -11,6 +11,7 @@
     "dialog:default",
     "clipboard-manager:default",
     "clipboard-manager:allow-write-text",
-    "log:default"
+    "log:default",
+    "os:default"
   ]
 }

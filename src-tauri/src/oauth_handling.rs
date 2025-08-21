@@ -4,7 +4,6 @@ use std::fs;
 use std::path::Path;
 use std::{collections::HashMap, fs::read_to_string};
 
-
 use http_body_util::Full;
 use hyper::{body::Bytes, server::conn::http1, service::service_fn, Request, Response};
 use hyper_util::rt::TokioIo;
@@ -15,7 +14,6 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::{oneshot, Mutex};
 use tokio::time::{timeout, Duration};
-
 
 use crate::utils::{CommandResult, FailureType};
 use tauri::ipc::Channel;
@@ -282,8 +280,7 @@ pub async fn get_token(
 
         Ok((
             access_token,
-            final_tokens
-                .refresh_token().cloned(),
+            final_tokens.refresh_token().cloned(),
             userinfo.email,
         ))
     }

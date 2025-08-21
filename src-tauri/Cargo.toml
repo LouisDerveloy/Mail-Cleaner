@@ -38,5 +38,6 @@ reqwest = { version = "0.12.23", features = ["json"] }
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-log = "2"
 log = "0.4.27"
+tauri-plugin-os = "2"
 
 
