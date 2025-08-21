@@ -12,6 +12,7 @@
     "clipboard-manager:default",
     "clipboard-manager:allow-write-text",
     "log:default",
-    "os:default"
+    "os:default",
+    "os:allow-hostname"
   ]
 }

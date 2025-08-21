@@ -4,6 +4,8 @@ use std::sync::{Mutex, MutexGuard};
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter, Manager, State};
 
+mod tests;
+
 mod email_access_provider;
 use crate::email_access_provider::{
     Credentials, EmailAccessProvider, EmailProvider, MailServer, OAuthCredentials,
@@ -210,6 +212,12 @@ pub fn run() {
             password_connect,
             gmail_oauth_request
         ])
+        .setup(|app| {
+            log::debug!("Application starting up");
+            log::debug!("machine: {} {} {} v{}", tauri_plugin_os::family(), tauri_plugin_os::platform(), tauri_plugin_os::arch(), tauri_plugin_os::version());
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
