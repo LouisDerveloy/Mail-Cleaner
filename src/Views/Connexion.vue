@@ -85,7 +85,7 @@ function GoogleConnect() {
   invoke("gmail_oauth_request", {feedbackChannel: channel}).then(value => {
     console.log("Connect with google Resulgt: ", value);
     router.push("/")
-  })
+  }).catch(handleError);
 }
 
 let ctx: gsap.Context | null = null;

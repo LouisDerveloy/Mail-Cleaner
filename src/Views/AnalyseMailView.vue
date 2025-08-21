@@ -150,7 +150,7 @@ async function deleteSelected() {
     };
 
     try {
-      await invoke("delete_senders", {senderIds: idsToDelete, retChannel: channel});
+      await invoke("delete_senders", {senderIds: idsToDelete, retChannel: channel}).catch(handleError);
       senders.value = senders.value.filter(s => !s.selected);
     } catch (err) {
       await handleError(err);
