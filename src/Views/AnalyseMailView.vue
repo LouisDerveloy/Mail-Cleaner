@@ -317,14 +317,6 @@ onBeforeUnmount(() => ctx?.revert())
   margin-left: auto;
 }
 
-.unselect-button, .delete-button {
-  background: #f55151;
-}
-
-.select-button {
-  background: #51f560;
-}
-
 .sender-item:hover {
   background-color: #d9d9d9;
 }
