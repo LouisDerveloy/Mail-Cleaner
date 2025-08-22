@@ -197,10 +197,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_log::Builder::new().build())
-        .setup(|app| {
-            app.manage(Mutex::new(AppState::default()));
-            Ok(())
-        })
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -214,7 +210,7 @@ pub fn run() {
         ])
         .setup(|app| {
             log::debug!("Application starting up");
-            log::debug!("machine: {} {} {} v{}", tauri_plugin_os::family(), tauri_plugin_os::platform(), tauri_plugin_os::arch(), tauri_plugin_os::version());
+            app.manage(Mutex::new(AppState::default()));
 
             Ok(())
         })
